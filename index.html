@@ -232,6 +232,20 @@ const SEED = {"log":{"2026-10-15_dumbbell-row":{"date":"2026-10-15","exercise":"
 })();
 </script>
 <script>
+/* Starting weights for a lift with no history, worked out from related lifts in your log. */
+const START_KG = {
+  "Machine Bench Press":[40,"your recent machine bench sessions"], "Dumbbell Row":[16,"your recent dumbbell rows"],
+  "Dumbbell Shoulder Press":[10,"your recent shoulder press sessions"], "Machine Fly":[26,"your recent machine fly sessions"],
+  "Cable Tricep Pushdown":[20,"your recent pushdowns"], "Hammer Curl":[10,"your recent hammer curls"],
+  "Leg Press":[65,"your recent leg press sessions"], "Romanian Deadlift":[40,"about 80% of the 50 kg you deadlifted for 8 reps on 8 Oct"],
+  "Dumbbell Hip Thrust":[12,"your recent hip thrusts"], "Seated Calf Press":[30,"your last seated calf session"],
+  "Lat Pulldown":[30,"your recent pulldowns"], "Cable Row":[30,"your recent cable rows"],
+  "Dumbbell Bench Press":[16,"your recent dumbbell bench sessions"], "Cable Face Pull":[15,"your last face pull session"],
+  "Dumbbell Bicep Curl":[10,"your recent curls"], "Incline Dumbbell Curl":[8,"about 80% of your 10 kg standing curl, since the incline makes it harder"],
+  "Dumbbell Skullcrusher":[7.5,"your recent skullcrushers"], "Dumbbell Lunge":[10,"your recent lunges"],
+  "Single-Leg RDL":[7.5,"your recent single-leg RDLs"], "Seated Leg Curl":[25,"your recent leg curls"],
+  "Single-Leg Calf Raise":[0,"bodyweight is plenty to start"], "Hip Abductor":[55,"your recent abductor sessions"]
+};
 const PLAN = [
   {key:"ua", label:"Upper A", day:"Mon", ex:[
     ["Machine Bench Press",4,8,10,2.5],["Dumbbell Row",4,10,12,2],["Dumbbell Shoulder Press",3,10,12,2],["Machine Fly",3,12,15,2.5],["Cable Tricep Pushdown",3,12,15,2.5],["Hammer Curl",3,10,12,2]]},
@@ -279,7 +293,9 @@ function suggest(ex, last){
     const aim = Math.max(lo, Math.min(worst+step, hi));
     return {cls: worst>=lo?"up":"hold", text:"Aim for "+aim+" s", aim};
   }
-  if(!last) return {cls:"new", text:"No history yet", kg:null, reps:lo};
+  if(!last){ const st = START_KG[ex[0]];
+    return st ? {cls:"new", text: st[0]>0 ? "Start at "+fmtKg(st[0])+" kg" : "Start with bodyweight", kg:st[0], reps:lo, first:st}
+              : {cls:"new", text:"No history yet", kg:null, reps:lo}; }
   // Working weight = the weight used for the most sets last time (ties go to the heavier weight), so one heavy set doesn't set the target.
   const counts = {}; last.sets.forEach(s=>{ counts[s.kg]=(counts[s.kg]||0)+1; });
   const top = Object.keys(counts).map(Number).sort((a,b)=> counts[b]-counts[a] || b-a)[0];
@@ -337,7 +353,9 @@ function render(){
     const timed = isTimed(ex);
     const hitOf = st => timed ? (st.secs||0)>=s.aim : st.reps>=hi;
     const sets = (todayRec?.sets||[]).map((st,i)=>`<li class="${hitOf(st)?"hit":""}">${timed?st.secs+" s":fmtKg(st.kg)+" kg × "+st.reps}<button aria-label="Remove set ${i+1}" data-rm="${i}" data-ex="${name}">×</button></li>`).join("");
-    const lastTxt = last ? `Last ${fmtDate(last.date)}: <b>${last.sets.map(setTxt).join(", ")}</b>` : "No previous session logged.";
+    const lastTxt = last ? `Last ${fmtDate(last.date)}: <b>${last.sets.map(setTxt).join(", ")}</b>`
+      : s.first ? `<b>First time.</b> Suggested start: ${s.first[0]>0 ? fmtKg(s.first[0])+" kg" : "bodyweight"} (${s.first[1]}). Do a lighter warm-up set first. You should finish each set feeling you could do 2–3 more reps; if it's much easier or harder, adjust by one step and the app will take it from there.`
+      : "No previous session logged.";
     const isOpen = open.has(name);
     const table = isOpen ? `<table><tr><th>Date</th><th>Sets</th><th>${timed?"Best":"Top"}</th></tr>${hist.slice(-8).reverse().map(r=>`<tr><td>${fmtDate(r.date)}</td><td>${r.sets.map(setTxt).join(", ")}</td><td>${fmtKg(topOf(r,timed))}${timed?" s":" kg"}</td></tr>`).join("")}</table>` : "";
     const sid = slug(name);
