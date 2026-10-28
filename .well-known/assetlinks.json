@@ -1,1 +1,8 @@
-
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "io.github.zacgoodwinphotos_design.twa",
+        "sha256_cert_fingerprints": ["7F:36:B9:0D:C4:02:6B:1B:7A:23:B2:40:BC:A2:52:E6:CF:E4:8F:69:9F:BE:18:76:11:65:E3:3F:96:2E:CE:0B"]
+      }
+    }]
