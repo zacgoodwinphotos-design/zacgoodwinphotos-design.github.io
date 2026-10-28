@@ -1,0 +1,906 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Fitness Planner</title>
+<meta name="theme-color" content="#faf9f5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#262624" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;font:14px system-ui,-apple-system,"Segoe UI",sans-serif}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap">
+<style>
+/* Layout: one narrow column in Claude's palette: ivory ground, clay accent, serif headings over a system sans UI. */
+:root{
+  --bg:#faf9f5; --surface:#ffffff; --ink:#141413; --muted:#73726c; --line:#e8e6dc;
+  --accent:#d97757; --accent-text:#c6613f; --accent-ink:#ffffff; --up:#3d7a4a; --up-bg:#e6efe3; --hold:#94621a; --hold-bg:#f6ecd9;
+  --font-display:"Source Serif 4",Georgia,"Times New Roman",serif;
+  --font-body:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#262624; --surface:#30302e; --ink:#faf9f5; --muted:#a6a39b; --line:#43423e;
+  --accent:#d97757; --accent-text:#e08a6b; --accent-ink:#ffffff; --up:#8cc396; --up-bg:#2c3a2e; --hold:#e2b66a; --hold-bg:#3d3424; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#262624; --surface:#30302e; --ink:#faf9f5; --muted:#a6a39b; --line:#43423e;
+  --accent:#d97757; --accent-text:#e08a6b; --accent-ink:#ffffff; --up:#8cc396; --up-bg:#2c3a2e; --hold:#e2b66a; --hold-bg:#3d3424; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 48px}
+.wrap{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--font-display);font-weight:500;font-size:32px;margin:0;line-height:1.1;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:13px;margin-top:4px;max-width:44ch}
+label.date{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--muted)}
+input{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}
+input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px}
+.tab{font:inherit;font-weight:600;font-size:14px;padding:8px 4px;border-radius:9px;border:0;background:none;color:var(--ink);cursor:pointer;line-height:1.2}
+.tab small{display:block;font-weight:400;font-size:11px;color:var(--muted)}
+.tab[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.tab[aria-pressed="true"] small{color:var(--accent-ink);opacity:.85}
+.status{font-size:13px;color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.name{font-family:var(--font-display);font-weight:600;font-size:20px;line-height:1.2}
+.target{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.chip{font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.chip.up{background:var(--up-bg);color:var(--up)} .chip.hold{background:var(--hold-bg);color:var(--hold)} .chip.new{background:var(--bg);color:var(--muted)}
+.last{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.last b{color:var(--ink);font-weight:600}
+.sets{display:flex;flex-wrap:wrap;gap:6px;list-style:none;margin:0;padding:0}
+.sets li{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:3px 4px 3px 12px;font-variant-numeric:tabular-nums;font-weight:600;font-size:14px}
+.sets li.hit{border-color:var(--up);color:var(--up)}
+.sets button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1;padding:2px 6px;border-radius:999px}
+.entry{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end}
+.entry label{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--muted)}
+.entry input{font-variant-numeric:tabular-nums;font-size:16px;width:100%}
+.add{background:var(--accent);color:var(--accent-ink);border:0;border-radius:10px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer}
+.add:disabled{opacity:.45;cursor:default}
+.ghost{background:none;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer}
+.hist{background:none;border:0;color:var(--accent-text);font:inherit;font-size:13px;font-weight:600;cursor:pointer;padding:0;align-self:flex-start}
+.timer{display:flex;flex-direction:column;gap:10px;border-radius:12px;background:var(--bg);padding:14px}
+.clockrow{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.clock{font-family:var(--font-display);font-weight:500;font-size:48px;line-height:1;font-variant-numeric:tabular-nums;min-width:3ch}
+.phase{font-size:13px;color:var(--muted);font-weight:600}
+.timer[data-state="ready"] .clock{color:var(--muted)}
+.timer[data-state="hit"] .clock,.timer[data-state="hit"] .phase{color:var(--up)}
+.track{position:relative;height:8px;border-radius:999px;background:var(--line);overflow:hidden}
+.fill{position:absolute;inset:0 auto 0 0;width:0;background:var(--accent);border-radius:999px}
+.timer[data-state="hit"] .fill{background:var(--up)}
+.mark{position:absolute;top:0;bottom:0;width:2px;background:var(--ink);opacity:.5}
+.tbtns{display:flex;gap:8px;flex-wrap:wrap}
+.tbtns .add{flex:1}
+.chart{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font-family:var(--font-body);font-size:11px}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .ln{stroke:var(--accent);stroke-width:2;fill:none}
+.chart .area{fill:var(--accent);opacity:.12}
+.chart .pt{fill:var(--accent)}
+.chart .end{fill:var(--accent);stroke:var(--surface);stroke-width:2}
+.chart .endlbl{fill:var(--ink);font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+td,th{text-align:left;padding:6px 8px 6px 0;border-top:1px solid var(--line);vertical-align:top}
+th{font-weight:500;color:var(--muted);font-size:12px;border-top:0}
+.today{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.dayhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.dayhead h2{font-family:var(--font-display);font-weight:500;font-size:22px;margin:0;line-height:1.2}
+.wk{font-size:12px;color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums}
+.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
+.dbtn{font:inherit;border:1px solid transparent;background:none;border-radius:10px;padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;color:var(--ink)}
+.dbtn .dn{font-size:11px;color:var(--muted)}
+.dbtn .dd{font-weight:600;font-variant-numeric:tabular-nums}
+.dbtn[aria-pressed="true"]{border-color:var(--accent);background:var(--bg)}
+.dbtn.istoday .dd{color:var(--accent-text)}
+.dots{display:flex;gap:3px;height:7px}
+.dot{width:7px;height:7px;border-radius:50%;border:1.5px solid var(--line)}
+.dot.run{border-color:var(--accent)} .dot.run.done{background:var(--accent)}
+.dot.gym{border-color:var(--muted)} .dot.gym.done{background:var(--muted)}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);align-items:center;flex-wrap:wrap}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.rows{display:grid;gap:8px}
+.row{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;align-items:start;padding:10px 12px;border-radius:12px;background:var(--bg)}
+.row .k{font-size:12px;font-weight:600;color:var(--muted);padding-top:2px}
+.row .t{font-weight:600}
+.row .d{font-size:13px;color:var(--muted)}
+.mini{font:inherit;font-size:13px;font-weight:600;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 12px;cursor:pointer;white-space:nowrap}
+.mini.on{background:var(--up-bg);color:var(--up);border-color:var(--up)}
+.mini:disabled{opacity:.45;cursor:default}
+.planmsg{font-size:14px;color:var(--muted)}
+.poses{display:grid;grid-template-columns:repeat(2,minmax(0,150px));gap:8px}
+.poses.one{grid-template-columns:minmax(0,150px)}
+.poses figure{margin:0;position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+.poses img{display:block;width:100%;height:auto;aspect-ratio:1/1;max-width:100%}
+.poses figcaption{position:absolute;left:6px;bottom:6px;font-size:11px;font-weight:600;background:var(--surface);color:var(--ink);padding:1px 7px;border-radius:999px}
+.posenote{font-size:12px;color:var(--muted);margin-top:-4px}
+.credit{font-size:12px;color:var(--muted)}
+.credit a{color:var(--accent-text)}
+.row .k b{display:block;font-size:14px;color:var(--ink);font-variant-numeric:tabular-nums}
+.row .k span{display:block;font-weight:500}
+.row.ghost{opacity:.7}
+.row.ghost .t{text-decoration:line-through}
+.tag{display:inline-block;margin-top:6px;font-size:11px;font-weight:600;color:var(--hold);background:var(--hold-bg);padding:2px 8px;border-radius:999px}
+.linkbtn{display:block;margin-top:6px;background:none;border:0;padding:0;font:inherit;font-size:13px;font-weight:600;color:var(--accent-text);cursor:pointer}
+.cantpanel{display:flex;flex-direction:column;gap:10px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px}
+.cantpanel p{margin:0;font-size:13px;color:var(--ink)}
+.cantmsg{margin:0;font-size:13px;font-weight:600;color:var(--ink);background:var(--hold-bg);padding:10px 12px;border-radius:10px}
+.guide{grid-column:1/-1;margin-top:2px;padding:12px;border-radius:10px;background:var(--surface);border:1px solid var(--line);font-size:13px;line-height:1.55;color:var(--ink);display:flex;flex-direction:column;gap:8px}
+.guide p{margin:0}
+.guide ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.counter{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:var(--bg)}
+.counter.full{background:var(--up-bg)}
+.pips{display:flex;gap:4px;flex-wrap:wrap;max-width:96px}
+.pip{width:10px;height:10px;border-radius:50%;border:2px solid var(--line)}
+.pip.on{background:var(--accent);border-color:var(--accent)}
+.pip.on.hit{background:var(--up);border-color:var(--up)}
+.ctext{flex:1;min-width:0;display:flex;flex-direction:column;font-variant-numeric:tabular-nums}
+.ctext b{font-size:14px}
+.ctext span{font-size:12px;color:var(--muted)}
+.counter .linkbtn{margin-top:0}
+.restline{margin:0;font-size:13px;color:var(--muted)}
+.row{grid-template-columns:52px minmax(0,1fr) auto}
+.backup{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.backup summary{cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;list-style:none}
+.backup summary::-webkit-details-marker{display:none}
+.backup summary::after{content:"Show";font-size:13px;font-weight:600;color:var(--accent-text)}
+.backup[open] summary::after{content:"Hide"}
+.backup:not([open]){gap:0}
+.backup h2{font-family:var(--font-display);font-weight:500;font-size:20px;margin:0}
+.backup p{margin:0;font-size:13px;color:var(--muted)}
+.bbtns{display:flex;gap:8px;flex-wrap:wrap}
+label.ghost{display:inline-block}
+.confirm{display:flex;flex-direction:column;gap:10px;background:var(--bg);border-radius:12px;padding:12px}
+.confirm p{color:var(--ink)}
+.note{font-size:12px;color:var(--muted)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:10px;font-size:13px}
+@media (prefers-reduced-motion:no-preference){.chip,.sets li,.fill{transition:background .2s,border-color .2s,width .1s linear}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Fitness Planner</h1>
+      <div class="sub">Your running and gym plan day by day, with double progression for every lift.</div>
+    </div>
+    <label class="date" for="day">Date<input type="date" id="day"></label>
+  </header>
+  <section class="today" id="today" aria-label="Daily overview"></section>
+  <nav class="tabs" id="tabs" aria-label="Session"></nav>
+  <div class="status" id="status">Loading your log…</div>
+  <main id="cards" class="wrap" style="gap:12px"></main>
+  <details class="backup" id="backupBox">
+    <summary><h2>Backup</h2></summary>
+    <p><b>Your log is stored on this phone only.</b> Export it every week or two so you always have a copy. Export your whole log as a Markdown file: every set, plank hold, completed run and plan change, in plain tables you can read, edit or upload anywhere. Importing a log (Markdown, or an older .json backup) adds what's in it and replaces any matching days; nothing else is deleted.</p>
+    <div class="bbtns">
+      <button class="ghost" id="exportBtn" disabled>Export log (.md)</button>
+      <label class="ghost" for="importFile" id="importLabel">Import log</label>
+      <input type="file" id="importFile" accept=".md,.markdown,.txt,.json,text/markdown,text/plain,application/json" hidden>
+    </div>
+    <div class="confirm" id="importConfirm" hidden></div>
+  </details>
+  <p class="note">Plank uses the built-in timer: a 5-second countdown, then beeps when you reach your target and the top of the range. Bodyweight lifts are logged at 0 kg and progress by reps.</p>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* Local storage layer: stands in for the cloud database and file saving, so the app runs entirely on this device. */
+const SEED = {"log":{"2026-10-15_dumbbell-row":{"date":"2026-10-15","exercise":"Dumbbell Row","sets":[{"kg":18,"reps":8},{"kg":18,"reps":8},{"kg":18,"reps":8}],"source":"import"},"2026-08-28_lat-pulldown":{"date":"2026-08-28","exercise":"Lat Pulldown","sets":[{"kg":25,"reps":11},{"kg":25,"reps":11},{"kg":25,"reps":11}],"source":"import"},"2026-09-26_plank":{"date":"2026-09-26","exercise":"Plank","sets":[{"kg":0,"secs":63},{"kg":0,"secs":63},{"kg":0,"secs":63}],"source":"import"},"2026-08-10_cable-row":{"date":"2026-08-10","exercise":"Cable Row","sets":[{"kg":21.2,"reps":8},{"kg":25,"reps":8},{"kg":25,"reps":8},{"kg":25,"reps":8}],"source":"import"},"2026-09-30_dumbbell-bench-press":{"date":"2026-09-30","exercise":"Dumbbell Bench Press","sets":[{"kg":14,"reps":10},{"kg":14,"reps":15},{"kg":14,"reps":15}],"source":"import"},"2026-10-09_lat-pulldown":{"date":"2026-10-09","exercise":"Lat Pulldown","sets":[{"kg":30,"reps":8},{"kg":30,"reps":8},{"kg":30,"reps":8}],"source":"import"},"2025-12-09_hammer-curl":{"date":"2025-12-09","exercise":"Hammer Curl","sets":[{"kg":8,"reps":13},{"kg":8,"reps":13},{"kg":8,"reps":13}],"source":"import"},"2026-06-16_machine-bench-press":{"date":"2026-06-16","exercise":"Machine Bench Press","sets":[{"kg":35,"reps":12},{"kg":35,"reps":12},{"kg":35,"reps":9},{"kg":27.5,"reps":12}],"source":"import"},"2026-03-12_hammer-curl":{"date":"2026-03-12","exercise":"Hammer Curl","sets":[{"kg":6,"reps":11},{"kg":6,"reps":11},{"kg":6,"reps":11}],"source":"import"},"2026-05-13_plank":{"date":"2026-05-13","exercise":"Plank","sets":[{"kg":0,"secs":65},{"kg":0,"secs":65},{"kg":0,"secs":65}],"source":"import"},"2026-09-16_machine-bench-press":{"date":"2026-09-16","exercise":"Machine Bench Press","sets":[{"kg":40,"reps":8},{"kg":40,"reps":8},{"kg":40,"reps":8},{"kg":40,"reps":8}],"source":"import"},"2026-08-06_machine-bench-press":{"date":"2026-08-06","exercise":"Machine Bench Press","sets":[{"kg":38,"reps":8},{"kg":38,"reps":8},{"kg":38,"reps":8}],"source":"import"},"2026-04-29_plank":{"date":"2026-04-29","exercise":"Plank","sets":[{"kg":0,"secs":60},{"kg":0,"secs":60}],"source":"import"},"2026-10-11_dumbbell-lunge":{"date":"2026-10-11","exercise":"Dumbbell Lunge","sets":[{"kg":8,"reps":5},{"kg":12,"reps":5}],"source":"import"},"2025-12-12_dumbbell-row":{"date":"2025-12-12","exercise":"Dumbbell Row","sets":[{"kg":16,"reps":10},{"kg":16,"reps":10},{"kg":16,"reps":10}],"source":"import"},"2025-12-12_dumbbell-bicep-curl":{"date":"2025-12-12","exercise":"Dumbbell Bicep Curl","sets":[{"kg":8,"reps":13},{"kg":8,"reps":13},{"kg":12,"reps":13},{"kg":12,"reps":13}],"source":"import"},"2026-09-02_machine-fly":{"date":"2026-09-02","exercise":"Machine Fly","sets":[{"kg":33,"reps":10},{"kg":33,"reps":10},{"kg":33,"reps":10},{"kg":33,"reps":10}],"source":"import"},"2026-10-06_leg-press":{"date":"2026-10-06","exercise":"Leg Press","sets":[{"kg":120,"reps":10},{"kg":120,"reps":10},{"kg":120,"reps":10}],"source":"import"},"2026-05-06_dumbbell-skullcrusher":{"date":"2026-05-06","exercise":"Dumbbell Skullcrusher","sets":[{"kg":8,"reps":10},{"kg":8,"reps":10},{"kg":8,"reps":10}],"source":"import"},"2026-07-02_machine-bench-press":{"date":"2026-07-02","exercise":"Machine Bench Press","sets":[{"kg":35,"reps":10},{"kg":35,"reps":10},{"kg":35,"reps":10}],"source":"import"},"2026-09-13_cable-row":{"date":"2026-09-13","exercise":"Cable Row","sets":[{"kg":30,"reps":8},{"kg":30,"reps":8},{"kg":30,"reps":8},{"kg":30,"reps":8}],"source":"import"},"2026-09-09_seated-leg-curl":{"date":"2026-09-09","exercise":"Seated Leg Curl","sets":[{"kg":25,"reps":12},{"kg":25,"reps":12},{"kg":25,"reps":12}],"source":"import"},"2026-08-11_dumbbell-hip-thrust":{"date":"2026-08-11","exercise":"Dumbbell Hip Thrust","sets":[{"kg":10,"reps":6},{"kg":10,"reps":6},{"kg":10,"reps":6}],"source":"import"},"2026-09-18_dumbbell-bicep-curl":{"date":"2026-09-18","exercise":"Dumbbell Bicep Curl","sets":[{"kg":10,"reps":16},{"kg":10,"reps":8},{"kg":10,"reps":10}],"source":"import"},"2026-06-23_dumbbell-bicep-curl":{"date":"2026-06-23","exercise":"Dumbbell Bicep Curl","sets":[{"kg":10,"reps":8},{"kg":10,"reps":8},{"kg":10,"reps":8}],"source":"import"},"2026-10-07_hammer-curl":{"date":"2026-10-07","exercise":"Hammer Curl","sets":[{"kg":10,"reps":10},{"kg":10,"reps":10},{"kg":10,"reps":10}],"source":"import"},"2026-08-28_dumbbell-skullcrusher":{"date":"2026-08-28","exercise":"Dumbbell Skullcrusher","sets":[{"kg":8,"reps":10},{"kg":8,"reps":10},{"kg":8,"reps":10}],"source":"import"},"2026-10-09_dumbbell-row":{"date":"2026-10-09","exercise":"Dumbbell Row","sets":[{"kg":16,"reps":8},{"kg":16,"reps":8}],"source":"import"},"2026-08-26_machine-bench-press":{"date":"2026-08-26","exercise":"Machine Bench Press","sets":[{"kg":40,"reps":10},{"kg":40,"reps":10},{"kg":40,"reps":12}],"source":"import"},"2026-08-31_dumbbell-hip-thrust":{"date":"2026-08-31","exercise":"Dumbbell Hip Thrust","sets":[{"kg":10,"reps":14},{"kg":10,"reps":14},{"kg":10,"reps":14}],"source":"import"},"2026-07-02_lat-pulldown":{"date":"2026-07-02","exercise":"Lat Pulldown","sets":[{"kg":13.75,"reps":30}],"source":"import"},"2026-05-07_lat-pulldown":{"date":"2026-05-07","exercise":"Lat Pulldown","sets":[{"kg":25,"reps":7},{"kg":25,"reps":7},{"kg":25,"reps":7}],"source":"import"},"2026-08-26_machine-fly":{"date":"2026-08-26","exercise":"Machine Fly","sets":[{"kg":34,"reps":9},{"kg":34,"reps":9},{"kg":34,"reps":9},{"kg":34,"reps":9}],"source":"import"},"2026-09-04_dumbbell-hip-thrust":{"date":"2026-09-04","exercise":"Dumbbell Hip Thrust","sets":[{"kg":12,"reps":8},{"kg":12,"reps":8},{"kg":12,"reps":8}],"source":"import"},"2026-08-18_dumbbell-bicep-curl":{"date":"2026-08-18","exercise":"Dumbbell Bicep Curl","sets":[{"kg":8,"reps":15},{"kg":8,"reps":15},{"kg":8,"reps":15}],"source":"import"},"2026-10-09_machine-fly":{"date":"2026-10-09","exercise":"Machine Fly","sets":[{"kg":19,"reps":8},{"kg":20,"reps":8},{"kg":26,"reps":15},{"kg":26,"reps":15}],"source":"import"},"2026-09-10_dumbbell-bench-press":{"date":"2026-09-10","exercise":"Dumbbell Bench Press","sets":[{"kg":16,"reps":10},{"kg":16,"reps":10},{"kg":16,"reps":10}],"source":"import"},"2026-09-02_hammer-curl":{"date":"2026-09-02","exercise":"Hammer Curl","sets":[{"kg":10,"reps":10},{"kg":10,"reps":10},{"kg":10,"reps":10}],"source":"import"},"2026-10-15_dumbbell-skullcrusher":{"date":"2026-10-15","exercise":"Dumbbell Skullcrusher","sets":[{"kg":7.5,"reps":12},{"kg":7.5,"reps":12},{"kg":7.5,"reps":12}],"source":"import"},"2026-05-13_dumbbell-bench-press":{"date":"2026-05-13","exercise":"Dumbbell Bench Press","sets":[{"kg":14,"reps":10},{"kg":14,"reps":10},{"kg":14,"reps":10},{"kg":14,"reps":10}],"source":"import"},"2026-06-03_dumbbell-skullcrusher":{"date":"2026-06-03","exercise":"Dumbbell Skullcrusher","sets":[{"kg":8,"reps":12},{"kg":8,"reps":12},{"kg":8,"reps":12},{"kg":8,"reps":12}],"source":"import"},"2026-09-22_dumbbell-row":{"date":"2026-09-22","exercise":"Dumbbell Row","sets":[{"kg":12.5,"reps":10},{"kg":12.5,"reps":10}],"source":"import"},"2026-09-09_leg-press":{"date":"2026-09-09","exercise":"Leg Press","sets":[{"kg":100,"reps":10},{"kg":100,"reps":10},{"kg":100,"reps":10},{"kg":140,"reps":5}],"source":"import"},"2026-10-11_leg-press":{"date":"2026-10-11","exercise":"Leg Press","sets":[{"kg":65,"reps":10},{"kg":65,"reps":10},{"kg":65,"reps":10}],"source":"import"},"2026-10-07_dumbbell-bench-press":{"date":"2026-10-07","exercise":"Dumbbell Bench Press","sets":[{"kg":16,"reps":10},{"kg":16,"reps":10},{"kg":16,"reps":20}],"source":"import"},"2026-07-02_hip-abductor":{"date":"2026-07-02","exercise":"Hip Abductor","sets":[{"kg":35,"reps":30}],"source":"import"},"2026-08-13_hip-abductor":{"date":"2026-08-13","exercise":"Hip Abductor","sets":[{"kg":58,"reps":12},{"kg":58,"reps":12},{"kg":58,"reps":12},{"kg":58,"reps":12}],"source":"import"},"2026-08-01_leg-press":{"date":"2026-08-01","exercise":"Leg Press","sets":[{"kg":60,"reps":12},{"kg":60,"reps":12},{"kg":60,"reps":12}],"source":"import"},"2026-10-11_plank":{"date":"2026-10-11","exercise":"Plank","sets":[{"kg":0,"secs":64},{"kg":0,"secs":64},{"kg":0,"secs":64}],"source":"import"},"2026-10-15_hammer-curl":{"date":"2026-10-15","exercise":"Hammer Curl","sets":[{"kg":10,"reps":11},{"kg":10,"reps":11},{"kg":10,"reps":11}],"source":"import"},"2026-05-06_lat-pulldown":{"date":"2026-05-06","exercise":"Lat Pulldown","sets":[{"kg":25,"reps":7},{"kg":25,"reps":7},{"kg":25,"reps":7}],"source":"import"},"2026-03-12_dumbbell-lunge":{"date":"2026-03-12","exercise":"Dumbbell Lunge","sets":[{"kg":8,"reps":9},{"kg":8,"reps":9}],"source":"import"},"2026-08-12_machine-fly":{"date":"2026-08-12","exercise":"Machine Fly","sets":[{"kg":19,"reps":8},{"kg":26,"reps":8},{"kg":33,"reps":12},{"kg":33,"reps":19}],"source":"import"},"2026-05-06_dumbbell-bicep-curl":{"date":"2026-05-06","exercise":"Dumbbell Bicep Curl","sets":[{"kg":12,"reps":5},{"kg":12,"reps":5},{"kg":12,"reps":5}],"source":"import"},"2026-09-13_dumbbell-skullcrusher":{"date":"2026-09-13","exercise":"Dumbbell Skullcrusher","sets":[{"kg":8,"reps":12},{"kg":8,"reps":12},{"kg":8,"reps":12}],"source":"import"},"2026-08-13_leg-press":{"date":"2026-08-13","exercise":"Leg Press","sets":[{"kg":90,"reps":10},{"kg":90,"reps":10},{"kg":90,"reps":10}],"source":"import"},"2026-08-01_hip-abductor":{"date":"2026-08-01","exercise":"Hip Abductor","sets":[{"kg":35,"reps":12},{"kg":60,"reps":12},{"kg":60,"reps":12},{"kg":60,"reps":12}],"source":"import"},"2026-09-23_dumbbell-row":{"date":"2026-09-23","exercise":"Dumbbell Row","sets":[{"kg":16,"reps":10},{"kg":16,"reps":10},{"kg":16,"reps":10}],"source":"import"},"2026-08-05_single-leg-calf-raise":{"date":"2026-08-05","exercise":"Single-Leg Calf Raise","sets":[{"kg":0,"reps":8},{"kg":0,"reps":8},{"kg":0,"reps":8}],"source":"import"},"2026-08-12_dumbbell-row":{"date":"2026-08-12","exercise":"Dumbbell Row","sets":[{"kg":12,"reps":15},{"kg":12,"reps":15},{"kg":12,"reps":15}],"source":"import"},"2026-07-02_leg-press":{"date":"2026-07-02","exercise":"Leg Press","sets":[{"kg":35,"reps":30}],"source":"import"},"2026-09-22_dumbbell-lunge":{"date":"2026-09-22","exercise":"Dumbbell Lunge","sets":[{"kg":7.5,"reps":4},{"kg":7.5,"reps":4},{"kg":7.5,"reps":4}],"source":"import"},"2026-09-21_lat-pulldown":{"date":"2026-09-21","exercise":"Lat Pulldown","sets":[{"kg":30,"reps":10},{"kg":30,"reps":10},{"kg":30,"reps":10},{"kg":30,"reps":10}],"source":"import"},"2026-08-18_seated-leg-curl":{"date":"2026-08-18","exercise":"Seated Leg Curl","sets":[{"kg":18,"reps":8},{"kg":30,"reps":8},{"kg":30,"reps":8},{"kg":18,"reps":8}],"source":"import"},"2026-06-23_dumbbell-bench-press":{"date":"2026-06-23","exercise":"Dumbbell Bench Press","sets":[{"kg":12,"reps":16},{"kg":12,"reps":16},{"kg":12,"reps":16}],"source":"import"},"2026-08-04_lat-pulldown":{"date":"2026-08-04","exercise":"Lat Pulldown","sets":[{"kg":25,"reps":7},{"kg":25,"reps":7},{"kg":25,"reps":7}],"source":"import"},"2026-06-23_leg-press":{"date":"2026-06-23","exercise":"Leg Press","sets":[{"kg":35,"reps":30},{"kg":57.5,"reps":5},{"kg":80,"reps":5},{"kg":102.5,"reps":5},{"kg":125,"reps":5},{"kg":132.5,"reps":5}],"source":"import"},"2026-03-25_lat-pulldown":{"date":"2026-03-25","exercise":"Lat Pulldown","sets":[{"kg":40,"reps":4},{"kg":30,"reps":5},{"kg":30,"reps":5}],"source":"import"},"2026-07-28_leg-press":{"date":"2026-07-28","exercise":"Leg Press","sets":[{"kg":40,"reps":30}],"source":"import"},"2025-12-09_dumbbell-bicep-curl":{"date":"2025-12-09","exercise":"Dumbbell Bicep Curl","sets":[{"kg":8,"reps":12},{"kg":8,"reps":12},{"kg":8,"reps":12},{"kg":8,"reps":12}],"source":"import"},"2026-04-23_hammer-curl":{"date":"2026-04-23","exercise":"Hammer Curl","sets":[{"kg":4,"reps":17},{"kg":8,"reps":17}],"source":"import"},"2026-10-08_seated-leg-curl":{"date":"2026-10-08","exercise":"Seated Leg Curl","sets":[{"kg":30,"reps":10},{"kg":30,"reps":10},{"kg":30,"reps":10}],"source":"import"},"2026-09-08_hammer-curl":{"date":"2026-09-08","exercise":"Hammer Curl","sets":[{"kg":8,"reps":11},{"kg":10,"reps":11},{"kg":10,"reps":11},{"kg":10,"reps":11}],"source":"import"},"2026-09-21_cable-tricep-pushdown":{"date":"2026-09-21","exercise":"Cable Tricep Pushdown","sets":[{"kg":20,"reps":12},{"kg":20,"reps":12},{"kg":20,"reps":12}],"source":"import"},"2026-09-18_hammer-curl":{"date":"2026-09-18","exercise":"Hammer Curl","sets":[{"kg":12.5,"reps":10},{"kg":12.5,"reps":10},{"kg":12.5,"reps":5}],"source":"import"},"2026-04-23_plank":{"date":"2026-04-23","exercise":"Plank","sets":[{"kg":0,"secs":60},{"kg":0,"secs":60},{"kg":0,"secs":60}],"source":"import"},"2026-08-12_machine-bench-press":{"date":"2026-08-12","exercise":"Machine Bench Press","sets":[{"kg":37.5,"reps":10},{"kg":37.5,"reps":10},{"kg":37.5,"reps":10}],"source":"import"},"2026-04-24_dumbbell-skullcrusher":{"date":"2026-04-24","exercise":"Dumbbell Skullcrusher","sets":[{"kg":8,"reps":6},{"kg":8,"reps":6},{"kg":8,"reps":6}],"source":"import"},"2026-08-27_hip-abductor":{"date":"2026-08-27","exercise":"Hip Abductor","sets":[{"kg":50,"reps":15},{"kg":50,"reps":15}],"source":"import"},"2026-07-02_dumbbell-shoulder-press":{"date":"2026-07-02","exercise":"Dumbbell Shoulder Press","sets":[{"kg":10,"reps":14},{"kg":10,"reps":14},{"kg":10,"reps":14}],"source":"import"},"2026-04-23_dumbbell-lunge":{"date":"2026-04-23","exercise":"Dumbbell Lunge","sets":[{"kg":10,"reps":4},{"kg":10,"reps":4},{"kg":10,"reps":4},{"kg":10,"reps":4}],"source":"import"},"2026-03-30_dumbbell-bicep-curl":{"date":"2026-03-30","exercise":"Dumbbell Bicep Curl","sets":[{"kg":10,"reps":6},{"kg":10,"reps":6},{"kg":10,"reps":6}],"source":"import"},"2026-10-02_cable-row":{"date":"2026-10-02","exercise":"Cable Row","sets":[{"kg":30,"reps":8},{"kg":25,"reps":8},{"kg":25,"reps":8},{"kg":25,"reps":8}],"source":"import"},"2026-09-21_dumbbell-bench-press":{"date":"2026-09-21","exercise":"Dumbbell Bench Press","sets":[{"kg":15,"reps":10},{"kg":15,"reps":10},{"kg":15,"reps":10}],"source":"import"},"2026-06-16_dumbbell-row":{"date":"2026-06-16","exercise":"Dumbbell Row","sets":[{"kg":17.5,"reps":8},{"kg":17.5,"reps":8},{"kg":17.5,"reps":8}],"source":"import"},"2026-09-16_dumbbell-row":{"date":"2026-09-16","exercise":"Dumbbell Row","sets":[{"kg":17.5,"reps":10},{"kg":17.5,"reps":10},{"kg":17.5,"reps":10}],"source":"import"},"2025-10-30_hammer-curl":{"date":"2025-10-30","exercise":"Hammer Curl","sets":[{"kg":8,"reps":13},{"kg":8,"reps":13},{"kg":8,"reps":13}],"source":"import"},"2026-06-05_hammer-curl":{"date":"2026-06-05","exercise":"Hammer Curl","sets":[{"kg":10,"reps":15},{"kg":8,"reps":15},{"kg":8,"reps":15}],"source":"import"},"2026-07-27_cable-row":{"date":"2026-07-27","exercise":"Cable Row","sets":[{"kg":13.75,"reps":30}],"source":"import"},"2026-07-02_cable-row":{"date":"2026-07-02","exercise":"Cable Row","sets":[{"kg":13.75,"reps":30}],"source":"import"},"2026-09-26_dumbbell-lunge":{"date":"2026-09-26","exercise":"Dumbbell Lunge","sets":[{"kg":5,"reps":4},{"kg":10,"reps":4},{"kg":10,"reps":4},{"kg":10,"reps":8}],"source":"import"},"2026-08-28_cable-row":{"date":"2026-08-28","exercise":"Cable Row","sets":[{"kg":30,"reps":8},{"kg":30,"reps":8},{"kg":30,"reps":8}],"source":"import"},"2026-07-28_lat-pulldown":{"date":"2026-07-28","exercise":"Lat Pulldown","sets":[{"kg":13.75,"reps":30}],"source":"import"},"2026-06-05_dumbbell-bench-press":{"date":"2026-06-05","exercise":"Dumbbell Bench Press","sets":[{"kg":14,"reps":8},{"kg":14,"reps":8},{"kg":14,"reps":8}],"source":"import"},"2026-06-15_dumbbell-lunge":{"date":"2026-06-15","exercise":"Dumbbell Lunge","sets":[{"kg":8,"reps":6},{"kg":8,"reps":6},{"kg":8,"reps":6}],"source":"import"},"2026-09-26_hammer-curl":{"date":"2026-09-26","exercise":"Hammer Curl","sets":[{"kg":10,"reps":15},{"kg":10,"reps":15},{"kg":10,"reps":15}],"source":"import"},"2026-07-27_lat-pulldown":{"date":"2026-07-27","exercise":"Lat Pulldown","sets":[{"kg":13.75,"reps":25}],"source":"import"},"2026-09-02_machine-bench-press":{"date":"2026-09-02","exercise":"Machine Bench Press","sets":[{"kg":35,"reps":10},{"kg":40,"reps":10},{"kg":40,"reps":10},{"kg":40,"reps":10}],"source":"import"},"2026-05-13_dumbbell-bicep-curl":{"date":"2026-05-13","exercise":"Dumbbell Bicep Curl","sets":[{"kg":8,"reps":13},{"kg":8,"reps":13},{"kg":8,"reps":13},{"kg":8,"reps":13}],"source":"import"},"2026-09-16_dumbbell-bicep-curl":{"date":"2026-09-16","exercise":"Dumbbell Bicep Curl","sets":[{"kg":10,"reps":10},{"kg":10,"reps":10},{"kg":10,"reps":10},{"kg":10,"reps":10}],"source":"import"},"2026-09-30_machine-fly":{"date":"2026-09-30","exercise":"Machine Fly","sets":[{"kg":33,"reps":10},{"kg":33,"reps":10},{"kg":33,"reps":10}],"source":"import"},"2026-09-10_lat-pulldown":{"date":"2026-09-10","exercise":"Lat Pulldown","sets":[{"kg":26,"reps":12},{"kg":26,"reps":12},{"kg":26,"reps":12}],"source":"import"},"2026-09-21_machine-bench-press":{"date":"2026-09-21","exercise":"Machine Bench Press","sets":[{"kg":40,"reps":10},{"kg":40,"reps":10},{"kg":40,"reps":9}],"source":"import"},"2026-08-07_leg-press":{"date":"2026-08-07","exercise":"Leg Press","sets":[{"kg":75,"reps":5},{"kg":75,"reps":5},{"kg":75,"reps":5}],"source":"import"},"2026-08-06_dumbbell-row":{"date":"2026-08-06","exercise":"Dumbbell Row","sets":[{"kg":14,"reps":11},{"kg":14,"reps":11},{"kg":14,"reps":11}],"source":"import"},"2026-06-22_cable-row":{"date":"2026-06-22","exercise":"Cable Row","sets":[{"kg":13.75,"reps":30}],"source":"import"},"2026-09-16_cable-face-pull":{"date":"2026-09-16","exercise":"Cable Face Pull","sets":[{"kg":13.75,"reps":12},{"kg":13.75,"reps":12},{"kg":16.25,"reps":12},{"kg":16.25,"reps":12}],"source":"import"},"2026-08-05_single-leg-rdl":{"date":"2026-08-05","exercise":"Single-Leg RDL","sets":[{"kg":8,"reps":4},{"kg":8,"reps":4},{"kg":8,"reps":4}],"source":"import"},"2026-10-15_cable-row":{"date":"2026-10-15","exercise":"Cable Row","sets":[{"kg":30,"reps":9},{"kg":30,"reps":9},{"kg":30,"reps":9}],"source":"import"},"2026-03-25_cable-row":{"date":"2026-03-25","exercise":"Cable Row","sets":[{"kg":35,"reps":5}],"source":"import"},"2026-08-11_single-leg-rdl":{"date":"2026-08-11","exercise":"Single-Leg RDL","sets":[{"kg":7.5,"reps":9},{"kg":7.5,"reps":9},{"kg":7.5,"reps":9}],"source":"import"},"2026-07-02_dumbbell-bicep-curl":{"date":"2026-07-02","exercise":"Dumbbell Bicep Curl","sets":[{"kg":10,"reps":9},{"kg":10,"reps":9},{"kg":10,"reps":9}],"source":"import"},"2026-09-04_plank":{"date":"2026-09-04","exercise":"Plank","sets":[{"kg":0,"secs":52},{"kg":0,"secs":52},{"kg":0,"secs":52},{"kg":0,"secs":52}],"source":"import"},"2026-08-07_hip-abductor":{"date":"2026-08-07","exercise":"Hip Abductor","sets":[{"kg":56,"reps":12},{"kg":56,"reps":12},{"kg":56,"reps":12}],"source":"import"},"2026-10-06_plank":{"date":"2026-10-06","exercise":"Plank","sets":[{"kg":0,"secs":60},{"kg":0,"secs":60},{"kg":0,"secs":60},{"kg":0,"secs":60}],"source":"import"},"2026-10-02_lat-pulldown":{"date":"2026-10-02","exercise":"Lat Pulldown","sets":[{"kg":30,"reps":8},{"kg":30,"reps":8},{"kg":30,"reps":8}],"source":"import"},"2026-04-23_dumbbell-bench-press":{"date":"2026-04-23","exercise":"Dumbbell Bench Press","sets":[{"kg":10,"reps":12},{"kg":10,"reps":12},{"kg":10,"reps":12},{"kg":10,"reps":12}],"source":"import"},"2025-10-30_dumbbell-bench-press":{"date":"2025-10-30","exercise":"Dumbbell Bench Press","sets":[{"kg":15,"reps":12},{"kg":15,"reps":12},{"kg":15,"reps":12}],"source":"import"},"2026-03-25_dumbbell-hip-thrust":{"date":"2026-03-25","exercise":"Dumbbell Hip Thrust","sets":[{"kg":8,"reps":12},{"kg":8,"reps":12},{"kg":8,"reps":12}],"source":"import"},"2026-07-27_leg-press":{"date":"2026-07-27","exercise":"Leg Press","sets":[{"kg":35,"reps":30}],"source":"import"},"2026-06-22_lat-pulldown":{"date":"2026-06-22","exercise":"Lat Pulldown","sets":[{"kg":13.75,"reps":30}],"source":"import"},"2025-12-03_dumbbell-skullcrusher":{"date":"2025-12-03","exercise":"Dumbbell Skullcrusher","sets":[{"kg":8,"reps":10},{"kg":8,"reps":10}],"source":"import"},"2026-09-09_plank":{"date":"2026-09-09","exercise":"Plank","sets":[{"kg":0,"secs":56},{"kg":0,"secs":56},{"kg":0,"secs":56}],"source":"import"},"2025-12-03_dumbbell-bicep-curl":{"date":"2025-12-03","exercise":"Dumbbell Bicep Curl","sets":[{"kg":8,"reps":10},{"kg":8,"reps":10},{"kg":8,"reps":10},{"kg":8,"reps":10}],"source":"import"},"2026-04-06_dumbbell-skullcrusher":{"date":"2026-04-06","exercise":"Dumbbell Skullcrusher","sets":[{"kg":4,"reps":12},{"kg":4,"reps":12},{"kg":4,"reps":20},{"kg":4,"reps":20}],"source":"import"},"2026-10-02_cable-tricep-pushdown":{"date":"2026-10-02","exercise":"Cable Tricep Pushdown","sets":[{"kg":20,"reps":12},{"kg":20,"reps":12},{"kg":20,"reps":12}],"source":"import"},"2026-08-04_dumbbell-bicep-curl":{"date":"2026-08-04","exercise":"Dumbbell Bicep Curl","sets":[{"kg":10,"reps":8},{"kg":10,"reps":8},{"kg":10,"reps":8}],"source":"import"},"2026-08-28_dumbbell-bicep-curl":{"date":"2026-08-28","exercise":"Dumbbell Bicep Curl","sets":[{"kg":12,"reps":8},{"kg":12,"reps":8},{"kg":12,"reps":8}],"source":"import"},"2026-03-31_dumbbell-row":{"date":"2026-03-31","exercise":"Dumbbell Row","sets":[{"kg":16,"reps":11},{"kg":16,"reps":11},{"kg":16,"reps":11}],"source":"import"},"2026-08-18_hip-abductor":{"date":"2026-08-18","exercise":"Hip Abductor","sets":[{"kg":68,"reps":8},{"kg":68,"reps":8},{"kg":68,"reps":8}],"source":"import"},"2026-09-10_machine-fly":{"date":"2026-09-10","exercise":"Machine Fly","sets":[{"kg":33,"reps":12},{"kg":33,"reps":12},{"kg":33,"reps":12}],"source":"import"},"2026-09-13_cable-tricep-pushdown":{"date":"2026-09-13","exercise":"Cable Tricep Pushdown","sets":[{"kg":20,"reps":7},{"kg":20,"reps":7},{"kg":20,"reps":7},{"kg":20,"reps":7}],"source":"import"},"2026-07-30_lat-pulldown":{"date":"2026-07-30","exercise":"Lat Pulldown","sets":[{"kg":17,"reps":30}],"source":"import"},"2026-09-22_lat-pulldown":{"date":"2026-09-22","exercise":"Lat Pulldown","sets":[{"kg":30,"reps":12},{"kg":30,"reps":12},{"kg":30,"reps":12}],"source":"import"},"2026-06-22_leg-press":{"date":"2026-06-22","exercise":"Leg Press","sets":[{"kg":35,"reps":30}],"source":"import"},"2025-12-12_dumbbell-bench-press":{"date":"2025-12-12","exercise":"Dumbbell Bench Press","sets":[{"kg":12,"reps":13},{"kg":12,"reps":13},{"kg":12,"reps":13},{"kg":12,"reps":13}],"source":"import"},"2026-06-23_lat-pulldown":{"date":"2026-06-23","exercise":"Lat Pulldown","sets":[{"kg":13.7,"reps":30}],"source":"import"},"2026-09-15_hip-abductor":{"date":"2026-09-15","exercise":"Hip Abductor","sets":[{"kg":55,"reps":8},{"kg":55,"reps":8},{"kg":55,"reps":8},{"kg":55,"reps":8}],"source":"import"},"2026-03-31_dumbbell-bench-press":{"date":"2026-03-31","exercise":"Dumbbell Bench Press","sets":[{"kg":12,"reps":10},{"kg":12,"reps":10},{"kg":12,"reps":10}],"source":"import"},"2026-08-06_machine-fly":{"date":"2026-08-06","exercise":"Machine Fly","sets":[{"kg":26,"reps":14},{"kg":26,"reps":14},{"kg":26,"reps":14}],"source":"import"},"2026-09-22_dumbbell-bicep-curl":{"date":"2026-09-22","exercise":"Dumbbell Bicep Curl","sets":[{"kg":10,"reps":8}],"source":"import"},"2026-05-13_dumbbell-row":{"date":"2026-05-13","exercise":"Dumbbell Row","sets":[{"kg":16,"reps":12},{"kg":16,"reps":12},{"kg":16,"reps":12}],"source":"import"},"2026-03-13_dumbbell-row":{"date":"2026-03-13","exercise":"Dumbbell Row","sets":[{"kg":14,"reps":6},{"kg":14,"reps":6},{"kg":14,"reps":6}],"source":"import"},"2026-08-27_leg-press":{"date":"2026-08-27","exercise":"Leg Press","sets":[{"kg":90,"reps":10},{"kg":90,"reps":10},{"kg":90,"reps":25}],"source":"import"},"2026-09-21_dumbbell-row":{"date":"2026-09-21","exercise":"Dumbbell Row","sets":[{"kg":15,"reps":14},{"kg":15,"reps":14},{"kg":15,"reps":14}],"source":"import"},"2026-09-04_leg-press":{"date":"2026-09-04","exercise":"Leg Press","sets":[{"kg":65,"reps":10},{"kg":65,"reps":10},{"kg":65,"reps":10},{"kg":65,"reps":10}],"source":"import"},"2026-10-02_dumbbell-skullcrusher":{"date":"2026-10-02","exercise":"Dumbbell Skullcrusher","sets":[{"kg":6,"reps":12}],"source":"import"},"2026-08-11_seated-calf-press":{"date":"2026-08-11","exercise":"Seated Calf Press","sets":[{"kg":30,"reps":10},{"kg":30,"reps":10},{"kg":30,"reps":10},{"kg":30,"reps":10}],"source":"import"},"2026-10-08_dumbbell-hip-thrust":{"date":"2026-10-08","exercise":"Dumbbell Hip Thrust","sets":[{"kg":12,"reps":12},{"kg":12,"reps":12},{"kg":12,"reps":12}],"source":"import"},"2026-09-22_dumbbell-hip-thrust":{"date":"2026-09-22","exercise":"Dumbbell Hip Thrust","sets":[{"kg":12.5,"reps":10},{"kg":12.5,"reps":10},{"kg":12.5,"reps":30}],"source":"import"},"2026-09-10_dumbbell-row":{"date":"2026-09-10","exercise":"Dumbbell Row","sets":[{"kg":18,"reps":8},{"kg":18,"reps":8},{"kg":18,"reps":8}],"source":"import"},"2026-09-15_plank":{"date":"2026-09-15","exercise":"Plank","sets":[{"kg":0,"secs":49},{"kg":0,"secs":60},{"kg":0,"secs":70},{"kg":0,"secs":75}],"source":"import"},"2026-05-07_dumbbell-bench-press":{"date":"2026-05-07","exercise":"Dumbbell Bench Press","sets":[{"kg":12,"reps":12},{"kg":12,"reps":12},{"kg":12,"reps":12}],"source":"import"},"2025-10-30_dumbbell-bicep-curl":{"date":"2025-10-30","exercise":"Dumbbell Bicep Curl","sets":[{"kg":8,"reps":8},{"kg":8,"reps":8},{"kg":8,"reps":8}],"source":"import"},"2026-09-21_dumbbell-skullcrusher":{"date":"2026-09-21","exercise":"Dumbbell Skullcrusher","sets":[{"kg":7.5,"reps":10},{"kg":7.5,"reps":10},{"kg":7.5,"reps":10}],"source":"import"},"2026-09-02_dumbbell-bench-press":{"date":"2026-09-02","exercise":"Dumbbell Bench Press","sets":[{"kg":14,"reps":6},{"kg":16,"reps":6},{"kg":16,"reps":10}],"source":"import"},"2026-06-22_hip-abductor":{"date":"2026-06-22","exercise":"Hip Abductor","sets":[{"kg":35,"reps":30}],"source":"import"},"2026-09-23_dumbbell-bench-press":{"date":"2026-09-23","exercise":"Dumbbell Bench Press","sets":[{"kg":12,"reps":10},{"kg":12,"reps":10},{"kg":12,"reps":10}],"source":"import"},"2026-10-15_dumbbell-bicep-curl":{"date":"2026-10-15","exercise":"Dumbbell Bicep Curl","sets":[{"kg":10,"reps":9},{"kg":10,"reps":9},{"kg":10,"reps":9}],"source":"import"},"2026-09-16_dumbbell-shoulder-press":{"date":"2026-09-16","exercise":"Dumbbell Shoulder Press","sets":[{"kg":10,"reps":10},{"kg":10,"reps":10},{"kg":10,"reps":10},{"kg":10,"reps":10}],"source":"import"},"2026-08-14_cable-tricep-pushdown":{"date":"2026-08-14","exercise":"Cable Tricep Pushdown","sets":[{"kg":18,"reps":9},{"kg":18,"reps":9},{"kg":18,"reps":9}],"source":"import"},"2026-09-02_dumbbell-bicep-curl":{"date":"2026-09-02","exercise":"Dumbbell Bicep Curl","sets":[{"kg":10,"reps":12},{"kg":10,"reps":12},{"kg":10,"reps":12}],"source":"import"},"2026-07-27_hip-abductor":{"date":"2026-07-27","exercise":"Hip Abductor","sets":[{"kg":35,"reps":30}],"source":"import"},"2026-08-14_dumbbell-row":{"date":"2026-08-14","exercise":"Dumbbell Row","sets":[{"kg":16,"reps":10},{"kg":16,"reps":10},{"kg":16,"reps":10},{"kg":16,"reps":10}],"source":"import"},"2026-09-13_dumbbell-row":{"date":"2026-09-13","exercise":"Dumbbell Row","sets":[{"kg":18,"reps":8},{"kg":18,"reps":8},{"kg":18,"reps":8}],"source":"import"},"2026-09-18_machine-bench-press":{"date":"2026-09-18","exercise":"Machine Bench Press","sets":[{"kg":40,"reps":8},{"kg":40,"reps":8},{"kg":40,"reps":8}],"source":"import"},"2026-03-13_dumbbell-skullcrusher":{"date":"2026-03-13","exercise":"Dumbbell Skullcrusher","sets":[{"kg":6,"reps":4},{"kg":6,"reps":4},{"kg":6,"reps":4},{"kg":6,"reps":4},{"kg":6,"reps":4}],"source":"import"},"2026-09-03_lat-pulldown":{"date":"2026-09-03","exercise":"Lat Pulldown","sets":[{"kg":25,"reps":12},{"kg":25,"reps":12},{"kg":25,"reps":12},{"kg":25,"reps":9}],"source":"import"},"2026-08-10_hammer-curl":{"date":"2026-08-10","exercise":"Hammer Curl","sets":[{"kg":10,"reps":8},{"kg":10,"reps":8},{"kg":10,"reps":8},{"kg":10,"reps":8}],"source":"import"},"2026-10-07_dumbbell-shoulder-press":{"date":"2026-10-07","exercise":"Dumbbell Shoulder Press","sets":[{"kg":10,"reps":10},{"kg":10,"reps":10},{"kg":10,"reps":10}],"source":"import"},"2026-09-08_dumbbell-bicep-curl":{"date":"2026-09-08","exercise":"Dumbbell Bicep Curl","sets":[{"kg":8,"reps":8},{"kg":12,"reps":8},{"kg":12,"reps":8},{"kg":12,"reps":10}],"source":"import"},"2026-09-08_dumbbell-bench-press":{"date":"2026-09-08","exercise":"Dumbbell Bench Press","sets":[{"kg":16,"reps":6},{"kg":16,"reps":7},{"kg":16,"reps":8},{"kg":16,"reps":10}],"source":"import"},"2026-10-08_hip-abductor":{"date":"2026-10-08","exercise":"Hip Abductor","sets":[{"kg":55,"reps":10},{"kg":55,"reps":10},{"kg":55,"reps":10}],"source":"import"},"2026-08-04_machine-fly":{"date":"2026-08-04","exercise":"Machine Fly","sets":[{"kg":34,"reps":11}],"source":"import"},"2026-09-22_seated-leg-curl":{"date":"2026-09-22","exercise":"Seated Leg Curl","sets":[{"kg":25,"reps":12},{"kg":25,"reps":12},{"kg":25,"reps":12}],"source":"import"},"2026-07-28_hip-abductor":{"date":"2026-07-28","exercise":"Hip Abductor","sets":[{"kg":35,"reps":30}],"source":"import"},"2026-04-24_dumbbell-row":{"date":"2026-04-24","exercise":"Dumbbell Row","sets":[{"kg":18,"reps":5},{"kg":18,"reps":5},{"kg":18,"reps":5},{"kg":18,"reps":5},{"kg":18,"reps":5}],"source":"import"},"2026-09-30_dumbbell-row":{"date":"2026-09-30","exercise":"Dumbbell Row","sets":[{"kg":16,"reps":10},{"kg":16,"reps":10},{"kg":16,"reps":10}],"source":"import"},"2026-09-08_dumbbell-shoulder-press":{"date":"2026-09-08","exercise":"Dumbbell Shoulder Press","sets":[{"kg":12,"reps":5},{"kg":12,"reps":5},{"kg":12,"reps":5}],"source":"import"},"2026-06-16_hammer-curl":{"date":"2026-06-16","exercise":"Hammer Curl","sets":[{"kg":10,"reps":8},{"kg":10,"reps":8},{"kg":10,"reps":8}],"source":"import"},"2026-08-26_dumbbell-row":{"date":"2026-08-26","exercise":"Dumbbell Row","sets":[{"kg":16,"reps":10},{"kg":16,"reps":10},{"kg":16,"reps":10},{"kg":16,"reps":10}],"source":"import"},"2026-05-09_dumbbell-row":{"date":"2026-05-09","exercise":"Dumbbell Row","sets":[{"kg":17.5,"reps":6},{"kg":17.5,"reps":6},{"kg":17.5,"reps":6},{"kg":17.5,"reps":6}],"source":"import"},"2026-08-14_lat-pulldown":{"date":"2026-08-14","exercise":"Lat Pulldown","sets":[{"kg":25,"reps":11},{"kg":25,"reps":11},{"kg":25,"reps":11}],"source":"import"},"2026-08-10_lat-pulldown":{"date":"2026-08-10","exercise":"Lat Pulldown","sets":[{"kg":25,"reps":9},{"kg":25,"reps":9},{"kg":25,"reps":9}],"source":"import"},"2025-12-12_dumbbell-shoulder-press":{"date":"2025-12-12","exercise":"Dumbbell Shoulder Press","sets":[{"kg":14,"reps":8},{"kg":14,"reps":8},{"kg":14,"reps":8},{"kg":14,"reps":8},{"kg":14,"reps":8}],"source":"import"}},"runs":{}};
+(function(){
+  const KEY = c => "fp:" + c, listeners = {};
+  const read = c => { try{ return JSON.parse(localStorage.getItem(KEY(c)) || "{}"); }catch(_){ return {}; } };
+  const write = (c, o) => localStorage.setItem(KEY(c), JSON.stringify(o));
+  function emit(c){
+    const o = read(c);
+    const snap = {docs: Object.entries(o).map(([id, d]) => ({id, exists:true, data: () => d}))};
+    (listeners[c] || []).forEach(f => { try{ f(snap); }catch(e){ console.error(e); } });
+  }
+  const collection = c => ({
+    doc: id => ({
+      set: async d => { const o = read(c); o[id] = JSON.parse(JSON.stringify(d)); write(c, o); queueMicrotask(() => emit(c)); },
+      delete: async () => { const o = read(c); delete o[id]; write(c, o); queueMicrotask(() => emit(c)); }
+    }),
+    onSnapshot: f => { (listeners[c] = listeners[c] || []).push(f); queueMicrotask(() => emit(c)); return () => { listeners[c] = listeners[c].filter(x => x !== f); }; }
+  });
+  window.addEventListener("storage", e => { if(e.key && e.key.startsWith("fp:")) emit(e.key.slice(3)); });
+  try{
+    if(localStorage.getItem("fp:seeded") !== "1"){
+      const o = read("log");
+      for(const [id, d] of Object.entries(SEED.log)) if(!o[id]) o[id] = d;
+      write("log", o); localStorage.setItem("fp:seeded", "1");
+    }
+  }catch(_){}
+  try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(_){}
+  const downloads = { save: async ({filename, data}) => {
+    const type = /[.]md$/.test(filename) ? "text/markdown" : "application/json";
+    const url = URL.createObjectURL(new Blob([data], {type}));
+    const a = document.createElement("a"); a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    return {status: "saved"};
+  }};
+  const db = {collection};
+  window.claude = { use: async n => n === "db" ? db : n === "downloads" ? downloads : null };
+})();
+</script>
+<script>
+const PLAN = [
+  {key:"ua", label:"Upper A", day:"Mon", ex:[
+    ["Machine Bench Press",4,8,10,2.5],["Dumbbell Row",4,10,12,2],["Dumbbell Shoulder Press",3,10,12,2],["Machine Fly",3,12,15,2.5],["Cable Tricep Pushdown",3,12,15,2.5],["Hammer Curl",3,10,12,2]]},
+  {key:"la", label:"Lower A", day:"Tue", ex:[
+    ["Leg Press",4,8,10,5],["Romanian Deadlift",3,8,10,2.5],["Dumbbell Hip Thrust",3,10,12,2],["Seated Calf Press",3,12,15,5],["Plank",3,60,75,5,"time"]]},
+  {key:"ub", label:"Upper B", day:"Wed", ex:[
+    ["Lat Pulldown",4,10,12,2.5],["Cable Row",4,8,10,2.5],["Dumbbell Bench Press",3,10,12,2],["Cable Face Pull",3,12,15,2.5],["Dumbbell Bicep Curl",3,10,12,2],["Incline Dumbbell Curl",3,10,12,2],["Dumbbell Skullcrusher",3,10,12,2]]},
+  {key:"lb", label:"Lower B", day:"Thu", ex:[
+    ["Dumbbell Lunge",3,8,10,2],["Single-Leg RDL",3,8,10,2],["Seated Leg Curl",3,10,12,2.5],["Single-Leg Calf Raise",3,12,15,2],["Hip Abductor",3,12,15,5]]},
+];
+const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+const fmtKg = n => (Math.round(n*10)/10).toString();
+const fmtDateY = iso => new Date(iso+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
+const fmtDate = iso => new Date(iso+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"});
+const isTimed = ex => ex[5]==="time";
+const setTxt = s => s.secs!=null ? s.secs+" s" : fmtKg(s.kg)+"×"+s.reps;
+const topOf = (r,timed) => timed ? Math.max(...r.sets.map(s=>s.secs||0)) : Math.max(...r.sets.map(s=>s.kg));
+const clock = ms => { const t=Math.max(0,Math.floor(ms/1000)); return Math.floor(t/60)+":"+String(t%60).padStart(2,"0"); };
+const today = () => { const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
+
+let LOG = {};           // id -> {date, exercise, sets:[{kg,reps}]}
+let db = null, col = null;
+const open = new Set();
+const posesOpen = new Set();
+const setsOpen = new Set();
+const drafts = {};      // exercise -> {kg, reps}
+const pending = {};     // doc id -> promise chain (one write at a time per doc)
+
+const dayInput = document.getElementById("day");
+dayInput.value = today();
+let current = (() => { try { return localStorage.getItem("liftlog.tab") || "ua"; } catch(e){ return "ua"; } })();
+if(!PLAN.find(p=>p.key===current)) current="ua";
+
+function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.hidden=false; clearTimeout(toast.h); toast.h=setTimeout(()=>t.hidden=true,2400); }
+
+function history(ex){
+  return Object.values(LOG).filter(r=>r.exercise===ex && r.sets && r.sets.length).sort((a,b)=>a.date<b.date?-1:1);
+}
+function suggest(ex, last){
+  const [ , nSets, lo, hi, step] = ex;
+  if(isTimed(ex)){
+    if(!last) return {cls:"new", text:"Aim for "+lo+" s", aim:lo};
+    const secs = last.sets.map(s=>s.secs||0), worst=Math.min(...secs);
+    if(secs.length>=nSets && worst>=hi) return {cls:"up", text:"Try a harder variation", aim:hi};
+    const aim = Math.max(lo, Math.min(worst+step, hi));
+    return {cls: worst>=lo?"up":"hold", text:"Aim for "+aim+" s", aim};
+  }
+  if(!last) return {cls:"new", text:"No history yet", kg:null, reps:lo};
+  // Working weight = the weight used for the most sets last time (ties go to the heavier weight), so one heavy set doesn't set the target.
+  const counts = {}; last.sets.forEach(s=>{ counts[s.kg]=(counts[s.kg]||0)+1; });
+  const top = Object.keys(counts).map(Number).sort((a,b)=> counts[b]-counts[a] || b-a)[0];
+  const work = last.sets.filter(s=>s.kg>=top);
+  if(top===0){
+    const minReps = Math.min(...work.map(s=>s.reps));
+    return {cls: minReps>=hi?"up":"hold", text: minReps>=hi?"Add reps or load":"Build reps", kg:0, reps:Math.min(minReps+1, hi+5)};
+  }
+  const atTop = last.sets.filter(s=>s.kg===top);
+  const hit = work.length>=nSets && atTop.every(s=>s.reps>=hi);
+  if(hit) return {cls:"up", text:"Go up to "+fmtKg(top+step)+" kg", kg:top+step, reps:lo};
+  return {cls:"hold", text:"Stay at "+fmtKg(top)+" kg", kg:top, reps:Math.min(Math.max(...work.map(s=>s.reps))+1,hi)};
+}
+
+function chart(hist, timed){
+  const unit = timed ? " s" : " kg";
+  const pts = hist.slice(-16).map(r=>({d:r.date, v:topOf(r,timed)}));
+  if(pts.length<2) return '<p class="note">Log two sessions to see a trend.</p>';
+  const W=560,H=170,L=34,R=48,T=12,B=24;
+  let lo=Math.min(...pts.map(p=>p.v)), hi=Math.max(...pts.map(p=>p.v));
+  if(hi===lo){ hi+=5; lo=Math.max(0,lo-5); }
+  const span=hi-lo, rawStep=span/3, mag=Math.pow(10,Math.floor(Math.log10(rawStep)));
+  const stepT=[1,2,2.5,5,10].map(m=>m*mag).find(s=>s>=rawStep)||rawStep;
+  const y0=Math.floor(lo/stepT)*stepT, y1=Math.ceil(hi/stepT)*stepT;
+  const x=i=>L+(W-L-R)*i/(pts.length-1), y=v=>T+(H-T-B)*(1-(v-y0)/(y1-y0));
+  let g="";
+  for(let v=y0; v<=y1+1e-9; v+=stepT){ g+=`<line class="grid" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${fmtKg(v)}</text>`; }
+  const path=pts.map((p,i)=>(i?"L":"M")+x(i)+" "+y(p.v)).join(" ");
+  const area=path+` L${x(pts.length-1)} ${H-B} L${x(0)} ${H-B} Z`;
+  const dots=pts.map((p,i)=>i<pts.length-1?`<circle class="pt" r="3" cx="${x(i)}" cy="${y(p.v)}"/>`:"").join("");
+  const e=pts[pts.length-1];
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${timed?"Longest hold":"Top set weight"} over the last ${pts.length} sessions">${g}
+    <path class="area" d="${area}"/><path class="ln" d="${path}"/>${dots}
+    <circle class="end" r="5" cx="${x(pts.length-1)}" cy="${y(e.v)}"/>
+    <text class="endlbl" x="${x(pts.length-1)+8}" y="${y(e.v)+4}">${fmtKg(e.v)}${unit}</text>
+    <text x="${L}" y="${H-6}">${fmtDate(pts[0].d)}</text><text x="${W-R}" y="${H-6}" text-anchor="end">${fmtDate(e.d)}</text></svg>`;
+}
+
+function renderTabs(){
+  renderToday();
+  document.getElementById("tabs").innerHTML = PLAN.map(p=>`<button class="tab" id="tab-${p.key}" aria-pressed="${p.key===current}" data-k="${p.key}">${p.label}<small>${p.day}</small></button>`).join("");
+}
+function render(){
+  renderTabs();
+  const date = dayInput.value || today();
+  const sess = PLAN.find(p=>p.key===current);
+  const html = sess.ex.map(ex=>{
+    const [name,nSets,lo,hi] = ex, id = date+"_"+slug(name);
+    const hist = history(name);
+    const todayRec = LOG[id];
+    const prior = hist.filter(r=>r.date<date);
+    const last = prior[prior.length-1];
+    const s = suggest(ex,last);
+    const dr = drafts[name] || {kg: s.kg ?? "", reps: s.reps};
+    const timed = isTimed(ex);
+    const hitOf = st => timed ? (st.secs||0)>=s.aim : st.reps>=hi;
+    const sets = (todayRec?.sets||[]).map((st,i)=>`<li class="${hitOf(st)?"hit":""}">${timed?st.secs+" s":fmtKg(st.kg)+" kg × "+st.reps}<button aria-label="Remove set ${i+1}" data-rm="${i}" data-ex="${name}">×</button></li>`).join("");
+    const lastTxt = last ? `Last ${fmtDate(last.date)}: <b>${last.sets.map(setTxt).join(", ")}</b>` : "No previous session logged.";
+    const isOpen = open.has(name);
+    const table = isOpen ? `<table><tr><th>Date</th><th>Sets</th><th>${timed?"Best":"Top"}</th></tr>${hist.slice(-8).reverse().map(r=>`<tr><td>${fmtDate(r.date)}</td><td>${r.sets.map(setTxt).join(", ")}</td><td>${fmtKg(topOf(r,timed))}${timed?" s":" kg"}</td></tr>`).join("")}</table>` : "";
+    const sid = slug(name);
+    const nextSet = (todayRec?.sets?.length||0)+1;
+    const poses = sid==="plank" ? [["main","Hold"]] : [["start","Start"],["peak","Finish"]];
+    const poseHtml = `<div class="poses ${poses.length===1?"one":""}">${poses.map(([p,l])=>`<figure><img src="img/${sid}-${p}.webp" width="512" height="512" loading="lazy" alt="${name}, ${l.toLowerCase()} position"><figcaption>${l}</figcaption></figure>`).join("")}</div>${sid==="machine-bench-press"?'<div class="posenote">Shown with a barbell; the machine follows the same pressing path.</div>':""}`;
+    const running = T && T.ex===name;
+    const entry = timed ? `<div class="timer" id="timer-${sid}">
+        <div class="clockrow"><div class="clock" id="clock-${sid}" aria-live="off">${running?"":"0:00"}</div><div class="phase" id="phase-${sid}">${running?"":"Target "+s.aim+" s"}</div></div>
+        <div class="track" aria-hidden="true"><span class="fill" id="fill-${sid}"></span><i class="mark" style="left:${Math.min(100,s.aim/(hi+15)*100)}%"></i></div>
+        <div class="tbtns">${running
+          ? `<button class="add stop" data-tstop="${name}">Stop and log</button><button class="ghost" data-tcancel="${name}">Cancel</button>`
+          : `<button class="add" data-tstart="${name}" ${db&&!T?"":"disabled"}>Start set ${nextSet}</button>`}</div>
+      </div>` : `<form class="entry" data-ex="${name}">
+        <label for="kg-${sid}">kg<input id="kg-${sid}" name="kg" type="number" inputmode="decimal" step="0.25" min="0" value="${dr.kg}"></label>
+        <label for="reps-${sid}">Reps<input id="reps-${sid}" name="reps" type="number" inputmode="numeric" step="1" min="1" value="${dr.reps}"></label>
+        <button class="add" id="add-${sid}" ${db?"":"disabled"}>Add set ${nextSet}</button>
+      </form>`;
+    return `<section class="card">
+      <div class="top"><div><div class="name">${name}</div><div class="target">${nSets} sets × ${lo}–${hi} ${timed?"seconds":"reps"}</div></div><span class="chip ${s.cls}">${s.text}</span></div>
+      <button class="hist" data-pose="${name}" aria-expanded="${posesOpen.has(name)}">${posesOpen.has(name)?"Hide form images":"Show form images"}</button>
+      ${posesOpen.has(name)?poseHtml:""}
+      <div class="last">${lastTxt}</div>
+      ${todayRec?.sets?.length ? (()=>{
+        const list = todayRec.sets, done = list.length, hits = list.filter(hitOf).length, isOpen = setsOpen.has(name);
+        const pips = Array.from({length:Math.max(nSets, done)}, (_,k)=>`<span class="pip ${k<done?(hitOf(list[k])?"on hit":"on"):""}"></span>`).join("");
+        const sum = done>=nSets ? (hits===done ? "All sets hit the target" : `${hits} of ${done} hit the target`) : `${nSets-done} to go`;
+        return `<div class="counter ${done>=nSets?"full":""}">
+          <div class="pips" aria-hidden="true">${pips}</div>
+          <div class="ctext"><b>${done} of ${nSets} sets done</b><span>${sum}</span></div>
+          <button class="linkbtn" data-sets="${name}" aria-expanded="${isOpen}">${isOpen?"Hide":"Details"}</button>
+        </div>${isOpen?`<ul class="sets" aria-label="Sets logged">${sets}</ul>`:""}`;
+      })() : ""}
+      ${entry}
+      <button class="hist" data-hist="${name}" aria-expanded="${isOpen}">${isOpen?"Hide progress":"Show progress"}${hist.length?" ("+hist.length+(hist.length===1?" session)":" sessions)"):""}</button>
+      ${isOpen?chart(hist,timed)+table:""}
+    </section>`;
+  }).join("");
+  document.getElementById("cards").innerHTML = html;
+  tick();
+}
+
+/* Plank timer: 5 s get-ready countdown, then counts up. Beeps at the target and at the top of the range. */
+let T = null, ac = null, wake = null;
+const READY = 5000;
+function beep(freq, ms, times=1){
+  try{
+    ac = ac || new (window.AudioContext||window.webkitAudioContext)();
+    for(let i=0;i<times;i++){
+      const o=ac.createOscillator(), g=ac.createGain(), t=ac.currentTime+i*(ms/1000+0.08);
+      o.frequency.value=freq; o.connect(g); g.connect(ac.destination);
+      g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.3,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+ms/1000);
+      o.start(t); o.stop(t+ms/1000+0.02);
+    }
+  }catch(_){}
+  try{ navigator.vibrate && navigator.vibrate(times>1?[120,80,120]:150); }catch(_){}
+}
+function tick(){
+  if(!T) return;
+  const sid=slug(T.ex), now=Date.now();
+  const c=document.getElementById("clock-"+sid), p=document.getElementById("phase-"+sid), f=document.getElementById("fill-"+sid);
+  const card = c && c.closest(".timer");
+  if(now < T.start){
+    const left=Math.ceil((T.start-now)/1000);
+    if(left!==T.lastCount){ T.lastCount=left; if(T.started) beep(660,90); }
+    T.started=true;
+    if(c) c.textContent=left; if(p) p.textContent="Get into position"; if(f) f.style.width="0%";
+    if(card) card.dataset.state="ready"; return;
+  }
+  if(!T.go){ T.go=true; beep(990,250); }
+  const secs=(now-T.start)/1000;
+  if(c) c.textContent=clock(now-T.start);
+  if(f) f.style.width=Math.min(100,secs/(T.hi+15)*100)+"%";
+  if(!T.aimHit && secs>=T.aim){ T.aimHit=true; beep(880,160,2); }
+  if(!T.hiHit && secs>=T.hi){ T.hiHit=true; beep(1175,160,3); }
+  if(p) p.textContent = secs>=T.hi ? "Top of range, stop when ready" : secs>=T.aim ? "Target hit, keep going to "+T.hi+" s" : "Target "+T.aim+" s";
+  if(card) card.dataset.state = secs>=T.aim ? "hit" : "run";
+}
+async function startTimer(name){
+  const ex=PLAN.flatMap(p=>p.ex).find(e=>e[0]===name);
+  const date=dayInput.value||today(), prior=history(name).filter(r=>r.date<date);
+  const s=suggest(ex, prior[prior.length-1]);
+  try{ ac = ac || new (window.AudioContext||window.webkitAudioContext)(); ac.resume && ac.resume(); }catch(_){}
+  T={ex:name, start:Date.now()+READY, aim:s.aim, hi:ex[3]};
+  T.iv=setInterval(tick,100);
+  try{ wake = await navigator.wakeLock?.request("screen"); }catch(_){ wake=null; }
+  render();
+}
+function endTimer(){
+  if(T) clearInterval(T.iv);
+  T=null;
+  try{ wake && wake.release(); }catch(_){} wake=null;
+}
+
+function save(id, rec){
+  pending[id] = (pending[id]||Promise.resolve()).then(()=> rec.sets.length ? col.doc(id).set(rec) : col.doc(id).delete())
+    .catch(e=>toast(e && e.code==="not_granted" ? "You can view this log but not edit it." : "Couldn't save that set. Check your connection and try again."));
+  return pending[id];
+}
+
+document.getElementById("tabs").addEventListener("click",e=>{
+  const b=e.target.closest("[data-k]"); if(!b) return;
+  current=b.dataset.k; try{localStorage.setItem("liftlog.tab",current)}catch(_){}
+  render();
+});
+
+/* Daily overview: the 4-week running plan starting Mon 26 Oct 2026, with gym sessions on Mon to Thu. */
+const START = Date.UTC(2026,9,26);
+const dayIdx = iso => Math.round((Date.UTC(+iso.slice(0,4), +iso.slice(5,7)-1, +iso.slice(8,10)) - START)/86400000);
+const isoOf = i => new Date(START + i*86400000).toISOString().slice(0,10);
+const dowOf = i => ((i%7)+7)%7;
+const GYM_BY_DOW = {0:"ua",1:"la",2:"ub",3:"lb"};
+const WEEK_KM = [21,24,26,18];
+const DRILL = " Cadence drill: 2–3 × 5 min at 152 spm.";
+const RUNS = [
+  {1:{t:"Easy run + 6 strides",km:"5 km",d:"Under 150 bpm."+DRILL},
+   3:{t:"Intervals",km:"7 km",d:"10 min warm-up, 5 × 3 min hard at 4:50–5:00/km with 2 min jog, 10 min cool-down."},
+   6:{t:"Long run",km:"9 km",d:"Under 150 bpm the whole way."}},
+  {1:{t:"Easy run + 6 strides",km:"6 km",d:"Under 150 bpm."+DRILL},
+   3:{t:"Tempo",km:"8 km",d:"10 min warm-up, 2 × 10 min at 5:15–5:30/km (165–172 bpm) with 3 min jog, 10 min cool-down."},
+   6:{t:"Long run",km:"10 km",d:"Under 150 bpm the whole way."}},
+  {1:{t:"Easy run + 6 strides",km:"6 km",d:"Under 150 bpm."+DRILL},
+   3:{t:"Intervals",km:"8 km",d:"10 min warm-up, 6 × 800 m at 4:45–4:50/km with 400 m jog, 10 min cool-down."},
+   5:{t:"Optional easy run",km:"3–4 km",d:"Only if the week has felt comfortable. Under 150 bpm.",opt:true},
+   6:{t:"Long run",km:"12 km",d:"Under 150 bpm. Walk breaks are fine."}},
+  {1:{t:"Easy run + 6 strides",km:"5 km",d:"Under 150 bpm."+DRILL},
+   3:{t:"Benchmark",km:"5 km + 2 km warm-up",d:"5 km at a steady 145 bpm. Note the average pace; your baseline is 6:20–6:30/km."},
+   6:{t:"Long run",km:"8 km",d:"Under 150 bpm."}}
+];
+let RUNDONE = {}, runCol = null;
+const runFor = i => (i>=0 && i<28) ? RUNS[Math.floor(i/7)][dowOf(i)] || null : null;
+const gymFor = i => GYM_BY_DOW[dowOf(i)] || null;
+function gymDone(iso, key){
+  const names = PLAN.find(p=>p.key===key).ex.map(e=>e[0]);
+  return names.filter(n=>{ const r=LOG[iso+"_"+slug(n)]; return r && r.sets && r.sets.length; }).length;
+}
+
+/* Rescheduling. Every planned session has an id (original date + type). A change either moves it to another date or skips it.
+   Rules from the plan: one run and one gym session a day; no leg session the day before a key run (hard run or long run);
+   no two key runs on back-to-back days; no key run the day after a leg session; no legs on long-run day. */
+
+/* Plain-language guide for each run, shown when "About this run" is opened. */
+const EASY_HOW = [
+  ["Effort", "Gentle and steady. You should be able to chat in full sentences. If you can't, slow down."],
+  ["Heart rate", "Keep it under 150 bpm (beats per minute, shown on your watch). If it creeps over, slow down or walk for 30 seconds. Walking is fine and doesn't spoil the run."],
+  ["Pace", "Ignore it. Expect around 6:30–7:00 per km, maybe slower on hills or hot days. That's normal."]
+];
+const CADENCE = ["Cadence drill", "Cadence is how many steps you take per minute. Set your watch's metronome to 152 and, for 2 or 3 blocks of 5 minutes, match your steps to the beeps. Take shorter, quicker steps rather than running faster. Over time this makes your stride more efficient and easier on your joints."];
+const STRIDES = ["Strides", "At the very end, do 6 short pick-ups of about 20 seconds. Gradually build to a quick but relaxed speed (not a sprint), then walk for 40 seconds or so before the next one. They wake your legs up and practise good form without tiring you out."];
+const RUN_GUIDE = {
+  "Easy run + 6 strides": {what:"A relaxed, steady run. This is the most important type of run in the plan, even though it feels easy.",
+    why:"Easy running builds your aerobic base: your heart, lungs and muscles get better at using oxygen. That's what lets you run faster for longer, and it's the area your data showed most room to improve.",
+    how:[...EASY_HOW, CADENCE, STRIDES]},
+  "Optional easy run": {what:"A short bonus run, only if the week has gone well.",
+    why:"A little extra easy running adds to your base without adding much tiredness. If your legs feel heavy or you're short on sleep, skip it. Rest is the better choice then.",
+    how:EASY_HOW},
+  "Long run": {what:"Your longest run of the week, done at the same easy effort as your other easy runs.",
+    why:"Long runs build endurance. They strengthen your legs, tendons and joints for longer distances, and train your body to save energy over time.",
+    how:[...EASY_HOW,
+      ["Fuel and water", "If you'll be out for more than an hour, take some water. Have a normal meal 2–3 hours before."],
+      ["The goal", "Finish feeling like you could have gone a bit further. Covering the distance is what counts, not the speed."]]},
+  "Intervals": {what:"Short, hard efforts with easy jogging in between. This is your one hard session of the week.",
+    why:"Running fast in short bursts teaches your body to handle higher speeds and boosts your top-end fitness, which carries over to races like a 5K.",
+    how:[["Warm up", "Jog easily for 10 minutes. Don't skip it: it gets your muscles ready for fast running and lowers injury risk."],
+      ["The hard part", "WORK"],
+      ["Recoveries", "Jog very slowly between efforts. Walk if you need to. The point is to recover enough to run the next one well."],
+      ["How it should feel", "Hard but controlled: breathing heavily, able to say only a few words. Aim for every rep at a similar pace. If the last one is much slower than the first, you started too fast."],
+      ["Cool down", "Jog easily for 10 minutes to finish."]]},
+  "Tempo": {what:"A sustained, 'comfortably hard' effort, harder than an easy run but well below sprinting.",
+    why:"Tempo running raises the speed you can hold before you tire quickly. It makes race pace feel easier and helps you hold it for longer.",
+    how:[["Warm up", "Jog easily for 10 minutes."],
+      ["The hard part", "Run 10 minutes at 5:15–5:30 per km (heart rate about 165–172 bpm), jog easily for 3 minutes, then run another 10 minutes at the same effort."],
+      ["How it should feel", "You could say a short sentence, but you wouldn't want to. Steady and focused, not straining. If your heart rate goes above 172, ease off a little."],
+      ["Cool down", "Jog easily for 10 minutes."]]},
+  "Benchmark": {what:"A fitness check, not a race. You'll run at a fixed heart rate and see what pace that gives you.",
+    why:"If your aerobic base is improving, you'll run faster at the same heart rate. This shows whether the easy running is working.",
+    how:[["Warm up", "Jog easily for 2 km."],
+      ["The test", "Run 5 km keeping your heart rate as steady as you can at around 145 bpm. Speed up or slow down to hold it there."],
+      ["Record it", "Note the average pace for the 5 km. Your starting point is 6:20–6:30 per km. Getting 10–20 seconds per km faster over the next couple of months is a great result."],
+      ["Keep it fair", "Use a flat route and, if you can, similar weather and time of day each time you repeat the test, so results compare like for like."]]}
+};
+function runGuide(r, week){
+  const g = RUN_GUIDE[r.t]; if(!g) return "";
+  const work = r.t!=="Intervals" ? "" : week===2
+    ? "Run 800 m hard (two laps of a running track, or use your watch), then jog 400 m to recover. Repeat 6 times. Aim for 4:45–4:50 per km, so each 800 m takes about 3 minutes 50 seconds."
+    : "Run hard for 3 minutes at 4:50–5:00 per km, then jog slowly for 2 minutes. Repeat 5 times.";
+  const items = g.how.map(([k,v]) => `<li><b>${k}:</b> ${v==="WORK"?work:v}</li>`).join("");
+  return `<div class="guide"><p><b>What it is:</b> ${g.what}</p><p><b>Why you're doing it:</b> ${g.why}</p><ul>${items}</ul></div>`;
+}
+const guideOpen = new Set();
+let CHANGES = {}, chgCol = null, pendingCant = null, lastMsg = "";
+const HARD = new Set(["Intervals","Tempo","Benchmark"]);
+const BASE = (()=>{ const out=[]; for(let i=0;i<28;i++){ const iso=isoOf(i), r=runFor(i), g=gymFor(i), w=Math.floor(i/7);
+  if(r) out.push({id:iso+"_run", orig:iso, type:"run", run:r, week:w});
+  if(g) out.push({id:iso+"_gym", orig:iso, type:"gym", gym:g, week:w}); } return out; })();
+const isHard = x => x.type==="run" && HARD.has(x.run.t);
+const isLong = x => x.type==="run" && x.run.t==="Long run";
+const isKey = x => isHard(x) || isLong(x);
+const isLower = x => x.type==="gym" && (x.gym==="la" || x.gym==="lb");
+const sessName = x => x.type==="run" ? x.run.t : PLAN.find(p=>p.key===x.gym).label;
+const niceDay = iso => new Date(iso+"T12:00:00").toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"});
+function schedule(changes = CHANGES){
+  return BASE.map(x=>{ const c=changes[x.id]; const to = c ? (c.to==="skip" ? null : c.to) : x.orig;
+    return {...x, date:to, moved: !!c && c.to!=="skip", skipped: !!c && c.to==="skip"}; });
+}
+const sessDone = x => x.date && (x.type==="run" ? !!RUNDONE[x.date] : gymDone(x.date, x.gym) > 0);
+function fits(sched, s, iso){
+  const i = dayIdx(iso); if(i<0 || i>27) return false;
+  const at = k => sched.filter(x => x.id!==s.id && x.date===isoOf(k));
+  const here = at(i), prev = at(i-1), next = at(i+1);
+  if(here.some(x => x.type===s.type)) return false;
+  if(isLower(s) && (next.some(isKey) || here.some(isLong))) return false;
+  if(isKey(s) && (prev.some(isKey) || next.some(isKey) || prev.some(isLower))) return false;
+  if(isLong(s) && here.some(isLower)) return false;
+  return true;
+}
+function findMove(s, sched){
+  const from = dayIdx(s.date), start = Math.max(from+1, dayIdx(today()));
+  const wEnd = Math.floor(from/7)*7 + 6, end = Math.min(isLong(s) ? wEnd+1 : wEnd, 27);
+  const partner = isHard(s) ? sched.find(x => x.date===s.date && isLower(x) && !sessDone(x)) : null;
+  for(const together of partner ? [true,false] : [false]){
+    for(let k=start; k<=end; k++){
+      const iso = isoOf(k);
+      const base = sched.map(x => (x.id===s.id || (together && x.id===partner.id)) ? {...x, date:null} : x);
+      if(!fits(base, s, iso)) continue;
+      if(together){
+        const withRun = base.map(x => x.id===s.id ? {...x, date:iso} : x);
+        if(!fits(withRun, partner, iso)) continue;
+        return {to:iso, partner};
+      }
+      return {to:iso, partner:null};
+    }
+  }
+  return null;
+}
+function applyChange(id, to, extra = {}){
+  const x = BASE.find(b => b.id===id), rec = {orig:x.orig, type:x.type, to, ...extra};
+  const prev = CHANGES[id];
+  CHANGES[id] = rec;
+  if(chgCol) chgCol.doc(id).set(rec).catch(() => { if(prev) CHANGES[id]=prev; else delete CHANGES[id]; render(); toast("Couldn't save that change. Check your connection and try again."); });
+}
+function undoChange(id){
+  const c = CHANGES[id]; if(!c) return;
+  delete CHANGES[id]; if(chgCol) chgCol.doc(id).delete().catch(()=>{});
+  if(c.with && CHANGES[c.with]){ delete CHANGES[c.with]; if(chgCol) chgCol.doc(c.with).delete().catch(()=>{}); }
+}
+function cantDo(ids, mode){
+  const msgs = [], handled = new Set();
+  for(const id of ids){
+    if(handled.has(id)) continue; handled.add(id);
+    const sched = schedule(), s = sched.find(x => x.id===id);
+    if(!s || !s.date || sessDone(s)) continue;
+    const name = sessName(s);
+    if(mode==="skip" || (s.type==="run" && s.run.opt)){
+      applyChange(id, "skip"); msgs.push(`${name} skipped.`); continue;
+    }
+    const m = findMove(s, sched);
+    if(!m){
+      applyChange(id, "skip");
+      msgs.push(isKey(s) ? `${name} skipped: there's no safe day left this week without stacking hard days. Carry on with the plan as normal.`
+                         : `${name} skipped: no free day left this week.`);
+      continue;
+    }
+    if(m.partner){
+      applyChange(id, m.to, {with:m.partner.id}); applyChange(m.partner.id, m.to, {with:id}); handled.add(m.partner.id);
+      msgs.push(`${name} and ${sessName(m.partner)} moved to ${niceDay(m.to)}.`);
+    } else {
+      applyChange(id, m.to); msgs.push(`${name} moved to ${niceDay(m.to)}.`);
+    }
+  }
+  lastMsg = msgs.join(" ");
+  pendingCant = null;
+  render();
+}
+function gymOn(iso){ const g = schedule().find(x => x.date===iso && x.type==="gym"); return g ? g.gym : null; }
+function autoTab(){
+  const g = gymOn(dayInput.value||today());
+  if(g) current = g;
+}
+function timesFor(iso, list){
+  const weekend = dowOf(dayIdx(iso)) >= 5, hasRun = list.some(x=>x.type==="run"), hasGym = list.some(x=>x.type==="gym");
+  const t = {};
+  for(const x of list){
+    if(x.type==="run") t[x.id] = weekend ? "09:00" : "07:00";
+    else t[x.id] = hasRun ? (weekend ? "16:00" : "18:00") : (weekend ? "10:00" : "18:00");
+  }
+  return t;
+}
+function renderToday(){
+  const el = document.getElementById("today");
+  const date = dayInput.value||today(), i = dayIdx(date), now = today();
+  const sched = schedule();
+  const base = i<0 ? 0 : i>27 ? 21 : i - dowOf(i);
+  const days = [...Array(7)].map((_,k)=>base+k);
+  const strip = days.map(k=>{
+    const iso=isoOf(k), list=sched.filter(x=>x.date===iso);
+    const r=list.find(x=>x.type==="run"), g=list.find(x=>x.type==="gym");
+    const d=new Date(iso+"T12:00:00");
+    const dots = (r&&!r.run.opt?`<span class="dot run ${RUNDONE[iso]?"done":""}"></span>`:"")+(g?`<span class="dot gym ${gymDone(iso,g.gym)?"done":""}"></span>`:"");
+    return `<button class="dbtn ${iso===now?"istoday":""}" aria-pressed="${iso===date}" data-date="${iso}" aria-label="${d.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})}">
+      <span class="dn">${d.toLocaleDateString("en-GB",{weekday:"short"}).slice(0,2)}</span><span class="dd">${d.getDate()}</span><span class="dots">${dots}</span></button>`;
+  }).join("");
+  const nice = new Date(date+"T12:00:00").toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"short"});
+  let head, body;
+  if(i<0){
+    head = `<div class="wk">Starts Mon 26 Oct</div>`;
+    body = `<p class="planmsg">Your 4-week plan starts on Monday 26 October. Tap a day above to preview it.</p>`;
+  } else if(i>27){
+    head = `<div class="wk">Plan complete</div>`;
+    body = `<p class="planmsg">The 4-week block ended on 22 November. Repeat it from week 1 at about 24 km, adding 1–2 km to the long run, and redo the 145 bpm benchmark every 4 weeks.</p>`;
+  } else {
+    const w=Math.floor(i/7);
+    head = `<div class="wk">Week ${w+1} of 4 · about ${WEEK_KM[w]} km</div>`;
+    const list = sched.filter(x=>x.date===date).sort((a,b)=>a.type==="run"?-1:1);
+    const gone = sched.filter(x=>x.orig===date && x.date!==date);
+    const times = timesFor(date, list);
+    const canChange = date >= now;
+    const rows = list.map(x=>{
+      const done = sessDone(x);
+      const from = x.moved ? `<span class="tag">Moved from ${niceDay(x.orig)}</span>` : "";
+      const cant = canChange && !done ? `<button class="linkbtn" data-cant="${x.id}">Can't do this</button>` : "";
+      if(x.type==="run"){
+        const r=x.run;
+        return `<div class="row"><div class="k"><b>${times[x.id]}</b><span>Run</span></div>
+          <div><div class="t">${r.t} · ${r.km}</div><div class="d">${r.d}</div>${from}
+          <button class="linkbtn" data-guide="${x.id}" aria-expanded="${guideOpen.has(x.id)}">${guideOpen.has(x.id)?"Hide run details":"About this run"}</button>
+          ${cant}</div>
+          <button class="mini ${RUNDONE[date]?"on":""}" data-run="${date}" ${runCol?"":"disabled"}>${RUNDONE[date]?"Done ✓":"Mark done"}</button>
+          ${guideOpen.has(x.id)?runGuide(r, x.week):""}</div>`;
+      }
+      const sess=PLAN.find(p=>p.key===x.gym), n=gymDone(date,x.gym), tot=sess.ex.length;
+      const run = list.find(y=>y.type==="run");
+      let note = run ? "At least 6 hours after the run. Short on time? Run first, then lift straight after." : "No run today, so any time works.";
+      if(x.week===3) note = "Deload week: same weights, half the sets. " + note;
+      if(run && run.run.t==="Benchmark" && x.gym==="lb") note = "Benchmark day: skip it, or do only the calf raises.";
+      return `<div class="row"><div class="k"><b>${times[x.id]}</b><span>Gym</span></div>
+        <div><div class="t">${sess.label} · ${n} of ${tot} lifts logged</div><div class="d">${note}</div>${from}${cant}</div>
+        <button class="mini ${n===tot?"on":""}" data-open="${x.gym}">${n===tot?"Done ✓":"Open"}</button></div>`;
+    }).join("");
+    const ghosts = gone.map(x=>`<div class="row ghost"><div class="k"><span>${x.type==="run"?"Run":"Gym"}</span></div>
+      <div><div class="t">${sessName(x)}</div><div class="d">${x.skipped?"Skipped":"Moved to "+niceDay(x.date)}</div></div>
+      <button class="mini" data-undo="${x.id}">Undo</button></div>`).join("");
+    const empty = !list.length ? `<p class="planmsg">${gone.length ? "Nothing left today." : "Rest day. An easy walk or some mobility work is fine."}</p>` : "";
+    const restNote = list.length && !list.some(x=>x.type==="gym") && !gone.some(x=>x.type==="gym") ? `<p class="restline">No gym today${dowOf(i)===6?": it's long-run day":dowOf(i)===5?": rest before tomorrow's long run":""}.</p>`
+                   : list.length && !list.some(x=>x.type==="run") && !gone.some(x=>x.type==="run") ? `<p class="restline">No run today.</p>` : "";
+    const open = list.filter(x=>!sessDone(x));
+    const dayBtn = canChange && open.length > 1 ? `<button class="linkbtn" data-cantday="${date}">Can't train today</button>` : "";
+    let panel = "";
+    if(pendingCant){
+      const ids = pendingCant.ids, one = ids.length===1 ? sched.find(x=>x.id===ids[0]) : null;
+      const what = one ? sessName(one) : "today's sessions";
+      panel = `<div class="cantpanel" role="group" aria-label="Reschedule">
+        <p>Can't do ${what}? Find another day uses your plan's rules: no leg session the day before a hard or long run, and no hard days back to back. If no safe day is left this week, the session is skipped.</p>
+        <div class="bbtns"><button class="add" data-cantgo="move">Find another day</button><button class="ghost" data-cantgo="skip">Skip it</button><button class="ghost" data-cantgo="cancel">Cancel</button></div></div>`;
+    }
+    const msg = lastMsg ? `<p class="cantmsg" role="status">${lastMsg}</p>` : "";
+    body = `${msg}<div class="rows">${rows}${ghosts}</div>${empty}${restNote}${dayBtn}${panel}`;
+  }
+  el.innerHTML = `<div class="dayhead"><h2>${nice}</h2>${head}</div>
+    <div class="week" role="group" aria-label="Week">${strip}</div>
+    <div class="legend"><span><span class="dot run done"></span>Run</span><span><span class="dot gym done"></span>Gym</span><span>Filled when done</span></div>
+    ${body}`;
+}
+document.getElementById("today").addEventListener("click",e=>{
+  const d=e.target.closest("[data-date]");
+  if(d){ dayInput.value=d.dataset.date; lastMsg=""; pendingCant=null; autoTab(); render(); return; }
+  const c=e.target.closest("[data-cant]");
+  if(c){ pendingCant={ids:[c.dataset.cant]}; lastMsg=""; render(); return; }
+  const cd=e.target.closest("[data-cantday]");
+  if(cd){ const iso=cd.dataset.cantday; pendingCant={ids:schedule().filter(x=>x.date===iso && !sessDone(x)).sort((a,b)=>a.type==="run"?-1:1).map(x=>x.id)}; lastMsg=""; render(); return; }
+  const go=e.target.closest("[data-cantgo]");
+  if(go){ const m=go.dataset.cantgo; if(m==="cancel"){ pendingCant=null; render(); } else if(pendingCant) cantDo(pendingCant.ids, m); return; }
+  const gd=e.target.closest("[data-guide]");
+  if(gd){ const id=gd.dataset.guide; guideOpen.has(id)?guideOpen.delete(id):guideOpen.add(id); render(); return; }
+  const u=e.target.closest("[data-undo]");
+  if(u){ undoChange(u.dataset.undo); lastMsg=""; render(); return; }
+  const r=e.target.closest("[data-run]");
+  if(r && runCol){
+    const iso=r.dataset.run, was=!!RUNDONE[iso];
+    if(was) delete RUNDONE[iso]; else RUNDONE[iso]=true;
+    render();
+    (was ? runCol.doc(iso).delete() : runCol.doc(iso).set({date:iso, done:true}))
+      .catch(()=>{ if(was) RUNDONE[iso]=true; else delete RUNDONE[iso]; render(); toast("Couldn't save that. Check your connection and try again."); });
+    return;
+  }
+  const o=e.target.closest("[data-open]");
+  if(o){ current=o.dataset.open; render(); document.getElementById("tabs").scrollIntoView({behavior:"smooth",block:"start"}); }
+});
+dayInput.addEventListener("change",()=>{ lastMsg=""; pendingCant=null; autoTab(); render(); });
+document.getElementById("cards").addEventListener("submit",e=>{
+  e.preventDefault();
+  const f=e.target, name=f.dataset.ex, kg=parseFloat(f.kg.value), reps=parseInt(f.reps.value,10);
+  if(!(kg>=0) || !(reps>0)){ toast("Enter a weight (0 for bodyweight) and at least 1 rep."); return; }
+  const date=dayInput.value||today(), id=date+"_"+slug(name);
+  const rec = LOG[id] ? {...LOG[id], sets:[...LOG[id].sets]} : {date, exercise:name, sets:[], source:"app"};
+  rec.sets.push({kg, reps}); LOG[id]=rec; drafts[name]={kg, reps};
+  render(); save(id, rec);
+});
+document.getElementById("cards").addEventListener("click",e=>{
+  const ts=e.target.closest("[data-tstart]");
+  if(ts){ if(!T) startTimer(ts.dataset.tstart); return; }
+  const tc=e.target.closest("[data-tcancel]");
+  if(tc){ endTimer(); render(); return; }
+  const tp=e.target.closest("[data-tstop]");
+  if(tp){
+    const name=tp.dataset.tstop, secs=T ? Math.floor((Date.now()-T.start)/1000) : 0;
+    endTimer();
+    if(secs<1){ toast("Timer stopped before the hold started, so nothing was logged."); render(); return; }
+    const date=dayInput.value||today(), id=date+"_"+slug(name);
+    const rec = LOG[id] ? {...LOG[id], sets:[...LOG[id].sets]} : {date, exercise:name, sets:[], source:"app"};
+    rec.sets.push({kg:0, secs}); LOG[id]=rec;
+    render(); save(id, rec); toast("Logged "+secs+" s"); return;
+  }
+  const rm=e.target.closest("[data-rm]");
+  if(rm){
+    const name=rm.dataset.ex, date=dayInput.value||today(), id=date+"_"+slug(name);
+    const rec={...LOG[id], sets:LOG[id].sets.filter((_,i)=>i!==+rm.dataset.rm)};
+    if(rec.sets.length) LOG[id]=rec; else delete LOG[id];
+    render(); save(id, rec); return;
+  }
+  const st=e.target.closest("[data-sets]");
+  if(st){ const n=st.dataset.sets; setsOpen.has(n)?setsOpen.delete(n):setsOpen.add(n); render(); return; }
+  const ps=e.target.closest("[data-pose]");
+  if(ps){ const n=ps.dataset.pose; posesOpen.has(n)?posesOpen.delete(n):posesOpen.add(n); render(); return; }
+  const h=e.target.closest("[data-hist]");
+  if(h){ const n=h.dataset.hist; open.has(n)?open.delete(n):open.add(n); render(); }
+});
+document.getElementById("cards").addEventListener("input",e=>{
+  const f=e.target.closest("form"); if(!f) return;
+  drafts[f.dataset.ex]={kg:f.kg.value, reps:f.reps.value};
+});
+
+
+/* Backup: the log is exported as a Markdown file of plain tables, and either that file or an older JSON backup can be imported. */
+let downloads = null, pendingImport = null;
+const exportBtn = document.getElementById("exportBtn");
+const importBox = document.getElementById("importConfirm");
+const DOW = iso => new Date(iso+"T12:00:00").toLocaleDateString("en-GB",{weekday:"short"});
+function toMarkdown(){
+  const L = ["# Fitness Planner log", "", `Exported ${new Date().toISOString().slice(0,16).replace("T"," ")} UTC. One row per set. Weights in kg; plank holds in seconds.`, ""];
+  const rows = Object.values(LOG).filter(r=>r && r.sets && r.sets.length).sort((a,b)=> a.date<b.date?-1 : a.date>b.date?1 : a.exercise.localeCompare(b.exercise));
+  L.push("## Sets", "", "| Date | Day | Exercise | Set | kg | Reps | Hold (s) |", "| --- | --- | --- | --- | --- | --- | --- |");
+  for(const r of rows) r.sets.forEach((x,k)=> L.push(`| ${r.date} | ${DOW(r.date)} | ${r.exercise} | ${k+1} | ${x.secs!=null?"":fmtKg(x.kg)} | ${x.secs!=null?"":x.reps} | ${x.secs!=null?x.secs:""} |`));
+  const sched = schedule();
+  L.push("", "## Runs completed", "", "| Date | Day | Run |", "| --- | --- | --- |");
+  for(const d of Object.keys(RUNDONE).sort()){ const r = sched.find(x=>x.type==="run" && x.date===d); L.push(`| ${d} | ${DOW(d)} | ${r ? r.run.t+" · "+r.run.km : "Run"} |`); }
+  L.push("", "## Plan changes", "", "| Session | Planned date | Now | Moved with |", "| --- | --- | --- | --- |");
+  for(const [id,c] of Object.entries(CHANGES).sort()) L.push(`| ${c.type} | ${c.orig} | ${c.to==="skip"?"skipped":c.to} | ${c.with||""} |`);
+  L.push("");
+  return L.join("\n");
+}
+function fromMarkdown(text){
+  const out = {log:{}, runs:{}, changes:{}};
+  let sec = "";
+  for(const raw of text.split(/\r?\n/)){
+    const line = raw.trim();
+    const h = line.match(/^##\s+(.*)$/); if(h){ sec = h[1].toLowerCase(); continue; }
+    if(!line.startsWith("|")) continue;
+    const c = line.replace(/^\||\|$/g,"").split("|").map(v=>v.trim());
+    if(!DAY.test(c[0]) && !(sec.startsWith("plan") && DAY.test(c[1]||""))) continue;
+    if(sec.startsWith("sets")){
+      const [date,,ex,,kg,reps,secs] = c; if(!ex) continue;
+      const id = date+"_"+slug(ex);
+      const r = out.log[id] || (out.log[id] = {date, exercise:ex, sets:[]});
+      r.sets.push(secs ? {kg:0, secs:Number(secs)} : {kg:Number(kg)||0, reps:Number(reps)});
+    } else if(sec.startsWith("runs")){
+      out.runs[c[0]] = {date:c[0], done:true};
+    } else if(sec.startsWith("plan")){
+      const [type, orig, now, wth] = c;
+      if(type!=="run" && type!=="gym") continue;
+      out.changes[orig+"_"+type] = {orig, type, to: now==="skipped" ? "skip" : now, ...(wth?{with:wth}:{})};
+    }
+  }
+  if(!Object.keys(out.log).length && !Object.keys(out.runs).length && !Object.keys(out.changes).length) throw new Error("no tables");
+  return out;
+}
+exportBtn.addEventListener("click", async ()=>{
+  if(!downloads){ toast("Export isn't available in this view."); return; }
+  try{
+    await downloads.save({filename:"fitness-planner-log-"+today()+".md", data:toMarkdown()});
+    toast("Log exported");
+  }catch(e){
+    if(e && e.code==="declined") return;
+    toast(e && e.code==="rate_limited" ? "A save prompt is already open." : "Couldn't export the log. Try again in a moment.");
+  }
+});
+const DAY = /^\d{4}-\d{2}-\d{2}$/, LOGID = /^\d{4}-\d{2}-\d{2}_[a-z0-9-]{1,80}$/, SESSID = /^\d{4}-\d{2}-\d{2}_(run|gym)$/;
+function cleanImport(obj){
+  if(!obj || typeof obj!=="object" || typeof obj.log!=="object" || !obj.log) throw new Error("not a Fitness Planner backup");
+  const log={}, runs={}, changes={};
+  for(const [id,r] of Object.entries(obj.log)){
+    if(!LOGID.test(id) || !r || !DAY.test(r.date) || typeof r.exercise!=="string" || !Array.isArray(r.sets)) continue;
+    const sets = r.sets.map(x=>{
+      const kg=Number(x&&x.kg)||0;
+      if(x && x.secs!=null){ const secs=Math.round(Number(x.secs)); return secs>0&&secs<36000 ? {kg:0, secs} : null; }
+      const reps=Math.round(Number(x&&x.reps)); return reps>0&&reps<1000&&kg>=0&&kg<2000 ? {kg, reps} : null;
+    }).filter(Boolean);
+    if(sets.length) log[id] = {date:r.date, exercise:r.exercise.slice(0,80), sets, source: r.source==="import"?"import":"app"};
+  }
+  for(const [id,r] of Object.entries(obj.runs||{})){ if(DAY.test(id) && r && r.done) runs[id]={date:id, done:true}; }
+  for(const [id,c] of Object.entries(obj.changes||{})){
+    if(!SESSID.test(id) || !c || !BASE.some(b=>b.id===id) || !(c.to==="skip" || DAY.test(c.to))) continue;
+    changes[id] = {orig:id.slice(0,10), type:id.slice(11), to:c.to, ...(c.with && SESSID.test(c.with) ? {with:c.with} : {})};
+  }
+  return {log, runs, changes};
+}
+document.getElementById("importFile").addEventListener("change", async e=>{
+  const f=e.target.files && e.target.files[0]; e.target.value="";
+  if(!f) return;
+  try{
+    const text = await f.text();
+    const parsed = cleanImport(/^\s*\{/.test(text) ? JSON.parse(text) : fromMarkdown(text));
+    const n=Object.keys(parsed.log).length, m=Object.keys(parsed.runs).length, q=Object.keys(parsed.changes).length;
+    if(!n && !m && !q){ toast("That file has no sessions to import."); return; }
+    const dates=[...Object.values(parsed.log).map(r=>r.date), ...Object.keys(parsed.runs), ...Object.values(parsed.changes).map(c=>c.orig)].sort();
+    pendingImport = parsed;
+    importBox.innerHTML = `<p>This file has <b>${n}</b> lift ${n===1?"entry":"entries"} and <b>${m}</b> completed ${m===1?"run":"runs"}${q?` and <b>${q}</b> plan ${q===1?"change":"changes"}`:""}, from ${fmtDateY(dates[0])} to ${fmtDateY(dates[dates.length-1])}. Matching days will be replaced.</p>
+      <div class="bbtns"><button class="add" id="importGo">Import ${n+m+q} items</button><button class="ghost" id="importCancel">Cancel</button></div>`;
+    importBox.hidden = false;
+  }catch(_){ toast("That file isn't a Fitness Planner log."); }
+});
+importBox.addEventListener("click", async e=>{
+  if(e.target.id==="importCancel"){ pendingImport=null; importBox.hidden=true; return; }
+  if(e.target.id!=="importGo" || !pendingImport) return;
+  const jobs = [...Object.entries(pendingImport.log).map(([id,d])=>()=>col.doc(id).set(d)),
+                ...Object.entries(pendingImport.runs).map(([id,d])=>()=>runCol.doc(id).set(d)),
+                ...Object.entries(pendingImport.changes).map(([id,d])=>()=>chgCol.doc(id).set(d))];
+  pendingImport = null;
+  let done=0, failed=0;
+  importBox.innerHTML = `<p id="importProg">Importing 0 of ${jobs.length}…</p>`;
+  for(let i=0;i<jobs.length;i+=10){
+    await Promise.all(jobs.slice(i,i+10).map(j=>j().then(()=>done++, ()=>failed++)));
+    const p=document.getElementById("importProg"); if(p) p.textContent=`Importing ${done+failed} of ${jobs.length}…`;
+  }
+  importBox.innerHTML = `<p>${failed ? `Imported ${done} items. ${failed} couldn't be saved; import the file again to retry them.` : `Imported ${done} items.`}</p>`;
+  setTimeout(()=>{ importBox.hidden=true; }, 6000);
+});
+autoTab();
+render();
+(async()=>{
+  const status=document.getElementById("status");
+  db = window.claude ? await window.claude.use("db") : null;
+  if(window.claude) window.claude.use("downloads").then(d=>{ downloads=d; exportBtn.disabled=!d; }).catch(()=>{});
+  if(!db){ status.textContent="Sign in to claude.ai to save and load your log."; document.getElementById("importLabel").hidden=true; render(); return; }
+  col = db.collection("log");
+  runCol = db.collection("runs");
+  runCol.onSnapshot(snap=>{ const n={}; snap.docs.forEach(d=>{ if(d.data()?.done) n[d.id]=true; }); RUNDONE=n; render(); }, ()=>{});
+  chgCol = db.collection("changes");
+  let firstChg = true;
+  chgCol.onSnapshot(snap=>{ const n={}; snap.docs.forEach(d=>{ const v=d.data(); if(v && v.to) n[d.id]=v; }); CHANGES=n; if(firstChg){ firstChg=false; autoTab(); } render(); }, ()=>{});
+  col.onSnapshot(snap=>{
+    const next={}; snap.docs.forEach(d=>{ next[d.id]=d.data(); });
+    LOG=next;
+    const n=new Set(Object.values(LOG).map(r=>r.date)).size;
+    status.textContent = n ? `${n} gym days in your log.` : "Your log is empty. Add your first set below.";
+    const a=document.activeElement, aid=a&&a.id, pos=a&&a.selectionStart;
+    render();
+    if(aid){ const el=document.getElementById(aid); if(el){ el.focus(); try{ if(pos!=null) el.setSelectionRange(pos,pos);}catch(_){} } }
+  }, ()=>{ status.textContent="Couldn't load your log. Reload the page to try again."; });
+})();
+</script>
+<script>
+if("serviceWorker" in navigator){ window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {})); }
+</script>
+</body>
+</html>
