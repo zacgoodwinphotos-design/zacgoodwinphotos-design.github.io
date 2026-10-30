@@ -171,6 +171,9 @@ th{font-weight:500;color:var(--muted);font-size:12px;border-top:0}
 .mrow span{font-size:12px;color:var(--muted)}
 .mrow .bbtns{gap:6px}
 .mnote{margin:0;font-size:12px;color:var(--muted)}
+.restgym{display:flex;flex-direction:column;gap:4px;padding:14px 16px;border-radius:14px;border:1px dashed var(--line);color:var(--muted);font-size:14px}
+.restgym p{margin:0}
+.restgym .linkbtn{margin-top:0;align-self:flex-start}
 .restline{margin:0;font-size:13px;color:var(--muted)}
 .row{grid-template-columns:52px minmax(0,1fr) auto}
 .backup{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px}
@@ -204,6 +207,7 @@ body{padding-bottom:72px}
     <label class="date" for="day">Date<input type="date" id="day"></label>
   </header>
   <section class="today" id="today" aria-label="Daily overview"></section>
+  <div class="restgym" id="restGym" hidden><p id="restGymText">No gym session today.</p><button class="linkbtn" id="gymAnyway">Do a gym session anyway</button></div>
   <nav class="tabs" id="tabs" aria-label="Session"></nav>
   <div class="status" id="status">Loading your log…</div>
   <main id="cards" class="wrap" style="gap:12px"></main>
@@ -431,6 +435,14 @@ function render(){
     </section>`;
   }).join("");
   document.getElementById("cards").innerHTML = html;
+  /* Rest days: no gym session planned on this date, so hide the exercises unless asked. */
+  const di = dayIdx(date), noGym = di>=0 && di<=27 && !gymOn(date) && !gymAnyway;
+  document.getElementById("restGym").hidden = !noGym;
+  for(const id of ["tabs","status","cards"]) document.getElementById(id).hidden = noGym;
+  if(noGym){
+    const runToday = schedule().some(x=>x.date===date && x.type==="run");
+    document.getElementById("restGymText").textContent = runToday ? "No gym session on this day, just the run above." : "No gym session on this day.";
+  }
   tick();
   if(typeof updateCollapseBtn==="function") updateCollapseBtn();
 }
@@ -583,7 +595,7 @@ function runGuide(r, week){
   return `<div class="guide"><p><b>What it is:</b> ${g.what}</p><p><b>Why you're doing it:</b> ${g.why}</p><ul>${items}</ul></div>`;
 }
 const guideOpen = new Set();
-let missedOpen = false, missedDayOpen = true;
+let missedOpen = false, missedDayOpen = true, gymAnyway = false;
 let planOpen = (() => { try { return localStorage.getItem("fp.planOpen") !== "0"; } catch(_) { return true; } })();
 let CHANGES = {}, chgCol = null, pendingCant = null, lastMsg = "";
 const HARD = new Set(["Intervals","Tempo","Benchmark"]);
@@ -821,6 +833,7 @@ function anyOpen(){
     || !!document.querySelector("#missedday[open]") || document.getElementById("backupBox").open;
 }
 function updateCollapseBtn(){ const b=document.getElementById("collapseAll"); if(b) b.hidden = !anyOpen(); }
+document.getElementById("gymAnyway").addEventListener("click", ()=>{ gymAnyway = true; render(); });
 document.getElementById("collapseAll").addEventListener("click", ()=>{
   posesOpen.clear(); guideOpen.clear(); setsOpen.clear(); open.clear();
   missedOpen = false; missedDayOpen = false; pendingCant = null; lastMsg = "";
@@ -829,7 +842,7 @@ document.getElementById("collapseAll").addEventListener("click", ()=>{
 });
 document.getElementById("today").addEventListener("click",e=>{
   const d=e.target.closest("[data-date]");
-  if(d){ dayInput.value=d.dataset.date; lastMsg=""; pendingCant=null; autoTab(); render(); return; }
+  if(d){ dayInput.value=d.dataset.date; lastMsg=""; pendingCant=null; gymAnyway=false; autoTab(); render(); return; }
   const c=e.target.closest("[data-cant]");
   if(c){ pendingCant={ids:[c.dataset.cant], anchor: c.closest(".missed") ? "box" : "rows"}; lastMsg=""; render();
     requestAnimationFrame(()=>{ const pn=document.querySelector(".cantpanel"); if(pn) pn.scrollIntoView({behavior:"smooth", block:"nearest"}); }); return; }
@@ -860,7 +873,7 @@ document.getElementById("today").addEventListener("click",e=>{
   const o=e.target.closest("[data-open]");
   if(o){ current=o.dataset.open; render(); document.getElementById("tabs").scrollIntoView({behavior:"smooth",block:"start"}); }
 });
-dayInput.addEventListener("change",()=>{ lastMsg=""; pendingCant=null; autoTab(); render(); });
+dayInput.addEventListener("change",()=>{ lastMsg=""; pendingCant=null; gymAnyway=false; autoTab(); render(); });
 document.getElementById("cards").addEventListener("submit",e=>{
   e.preventDefault();
   const f=e.target, name=f.dataset.ex, kg=parseFloat(f.kg.value), reps=parseInt(f.reps.value,10);

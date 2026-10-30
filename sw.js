@@ -1,5 +1,5 @@
 /* Offline support: keeps the app and its images on the phone. Bump VERSION when files change. */
-const VERSION = "fp-v12";
+const VERSION = "fp-v13";
 const ASSETS = [
  "./",
  "index.html",
