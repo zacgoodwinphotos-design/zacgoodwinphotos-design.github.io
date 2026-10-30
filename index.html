@@ -152,6 +152,9 @@ th{font-weight:500;color:var(--muted);font-size:12px;border-top:0}
 .missed summary::after{content:"Show";font-size:13px;font-weight:600;color:var(--accent-text)}
 .missed[open] summary::after{content:"Hide"}
 .mcount{flex:1;font-size:12px;color:var(--muted)}
+.msub{margin:4px 0 0;font-size:12px;font-weight:600;color:var(--ink)}
+.pickh{margin:0;font-size:13px;font-weight:600}
+.pickdays{display:flex;flex-wrap:wrap;gap:6px}
 .mbody{display:flex;flex-direction:column;gap:8px;margin-top:8px}
 .missed .mh{margin:0;font-size:12px;font-weight:700;color:var(--hold);letter-spacing:.04em;text-transform:uppercase}
 .mrow{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px}
@@ -617,6 +620,17 @@ function undoChange(id){
   delete CHANGES[id]; if(chgCol) chgCol.doc(id).delete().catch(()=>{});
   if(c.with && CHANGES[c.with]){ delete CHANGES[c.with]; if(chgCol) chgCol.doc(c.with).delete().catch(()=>{}); }
 }
+function safeDays(s, sched){
+  const todayI = dayIdx(today()), cur = dayIdx(s.date), wS = cur - dowOf(cur);
+  const end = Math.min(isLong(s) ? wS+7 : wS+6, 27), out = [];
+  for(let k=Math.max(todayI, wS, 0); k<=end; k++){ const iso=isoOf(k); if(k!==cur && fits(sched, s, iso)) out.push(iso); }
+  return out;
+}
+function pickDay(id, iso){
+  const s = schedule().find(x=>x.id===id); if(!s) return;
+  if(iso===s.orig) undoChange(id); else applyChange(id, iso);
+  lastMsg = `${sessName(s)} moved to ${niceDay(iso)}.`; pendingCant = null; render();
+}
 function cantDo(ids, mode){
   const msgs = [], handled = new Set();
   for(const id of ids){
@@ -723,10 +737,14 @@ function renderToday(){
     let panel = "";
     if(pendingCant){
       const ids = pendingCant.ids, one = ids.length===1 ? sched.find(x=>x.id===ids[0]) : null;
-      const what = one ? sessName(one) : "today's sessions";
+      const what = one ? sessName(one) + " (" + niceDay(one.date) + ")" : "today's sessions";
+      const days = one ? safeDays(one, sched) : [];
+      const pick = one ? (days.length
+        ? `<p class="pickh">Or choose a day:</p><div class="pickdays">${days.map(d=>`<button class="mini" data-pickday="${d}">${niceDay(d)}${d===one.orig?" (planned)":""}</button>`).join("")}</div>`
+        : `<p class="pickh">No other safe day is left this week.</p>`) : "";
       panel = `<div class="cantpanel" role="group" aria-label="Reschedule">
-        <p>Can't do ${what}? Find another day uses your plan's rules: no leg session the day before a hard or long run, and no hard days back to back. If no safe day is left this week, the session is skipped.</p>
-        <div class="bbtns"><button class="add" data-cantgo="move">Find another day</button><button class="ghost" data-cantgo="skip">Skip it</button><button class="ghost" data-cantgo="cancel">Cancel</button></div></div>`;
+        <p>Reschedule ${what}. Find another day picks the next safe day for you. Choose a day lists every day that keeps your plan's rules: no leg session the day before a hard or long run, and no hard days back to back.</p>
+        <div class="bbtns"><button class="add" data-cantgo="move">Find another day</button><button class="ghost" data-cantgo="skip">Skip it</button><button class="ghost" data-cantgo="cancel">Cancel</button></div>${pick}</div>`;
     }
     const msg = lastMsg ? `<p class="cantmsg" role="status">${lastMsg}</p>` : "";
     /* Missed sessions: shown on the day they were missed once that day is over, and on rest days as a collapsible list. */
@@ -735,15 +753,20 @@ function renderToday(){
           <div class="bbtns"><button class="mini" data-cant="${x.id}">Reschedule</button>${x.type==="run"
             ? `<button class="mini" data-run="${x.date}">I did it</button>`
             : `<button class="mini" data-logpast="${x.date}|${x.gym}">Log it</button>`}</div></div>`;
-    const MNOTE = `<p class="mnote">Reschedule finds the next safe day this week using the same rules as Can't do this, or skips it if there isn't one. Did the session but forgot to log it? Use I did it or Log it.</p>`;
+    const MNOTE = `<p class="mnote">Reschedule or Move lets the app pick the next safe day, or you can choose one yourself. Did a session but forgot to log it? Use I did it or Log it.</p>`;
     let missedBox = "";
     if(recent){
       const here = list.filter(x => !sessDone(x) && !(x.type==="run" && x.run.opt));
       if(here.length) missedBox = `<div class="missed"><p class="mh">Missed ${here.length===1?"session":"sessions"}</p>${here.map(missedRow).join("")}${MNOTE}</div>`;
-    } else if(date === now && !BASE.some(b => b.orig===now && !(b.type==="run" && b.run.opt))){   // a planned rest day
+    } else {   // every other day: missed sessions plus the rest of this week, so you can plan ahead
       const missed = sched.filter(x => x.date && x.date < now && dayIdx(x.date) >= lookStart && !sessDone(x) && !(x.type==="run" && x.run.opt));
-      if(missed.length) missedBox = `<details class="missed" id="resched"${missedOpen?" open":""}><summary><span class="mh">Reschedule days</span><span class="mcount">${missed.length} missed</span></summary>
-        <div class="mbody">${missed.map(missedRow).join("")}${MNOTE}</div></details>`;
+      const wkS = i - dowOf(i), from = Math.max(wkS, todayI);
+      const ahead = sched.filter(x => x.date && dayIdx(x.date) >= from && dayIdx(x.date) <= wkS+6 && !sessDone(x));
+      const aheadRow = x => `<div class="mrow"><div><b>${sessName(x)}</b><span>${niceDay(x.date)} · ${x.type==="run" ? "Run" : "Gym"}${x.moved?" · moved":""}</span></div>
+          <div class="bbtns"><button class="mini" data-cant="${x.id}">Move</button></div></div>`;
+      const count = [missed.length ? missed.length+" missed" : "", ahead.length ? ahead.length+" coming up" : ""].filter(Boolean).join(" · ");
+      if(missed.length || ahead.length) missedBox = `<details class="missed" id="resched"${missedOpen?" open":""}><summary><span class="mh">Reschedule days</span><span class="mcount">${count}</span></summary>
+        <div class="mbody">${missed.length ? `<p class="msub">Missed</p>${missed.map(missedRow).join("")}` : ""}${ahead.length ? `<p class="msub">Coming up ${wkS+6 < todayI+7 && wkS <= todayI ? "this week" : "in week "+(Math.floor(i/7)+1)}</p>${ahead.map(aheadRow).join("")}` : ""}${MNOTE}</div></details>`;
     }
     body = `${msg}${missedBox}<div class="rows">${rows}${ghosts}</div>${empty}${restNote}${dayBtn}${panel}`;
   }
@@ -760,6 +783,8 @@ document.getElementById("today").addEventListener("click",e=>{
   if(c){ pendingCant={ids:[c.dataset.cant]}; lastMsg=""; render(); return; }
   const cd=e.target.closest("[data-cantday]");
   if(cd){ const iso=cd.dataset.cantday; pendingCant={ids:schedule().filter(x=>x.date===iso && !sessDone(x)).sort((a,b)=>a.type==="run"?-1:1).map(x=>x.id)}; lastMsg=""; render(); return; }
+  const pk=e.target.closest("[data-pickday]");
+  if(pk && pendingCant){ pickDay(pendingCant.ids[0], pk.dataset.pickday); return; }
   const go=e.target.closest("[data-cantgo]");
   if(go){ const m=go.dataset.cantgo; if(m==="cancel"){ pendingCant=null; render(); } else if(pendingCant) cantDo(pendingCant.ids, m); return; }
   const gd=e.target.closest("[data-guide]");
