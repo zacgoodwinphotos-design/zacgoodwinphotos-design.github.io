@@ -437,7 +437,7 @@ function render(){
   document.getElementById("cards").innerHTML = html;
   /* Rest days: no gym session planned on this date, so hide the exercises unless asked. */
   const di = dayIdx(date), noGym = di>=0 && di<=27 && !gymOn(date) && !gymAnyway;
-  document.getElementById("restGym").hidden = !noGym;
+  document.getElementById("restGym").hidden = true;   // rest days show nothing below the day plan
   for(const id of ["tabs","status","cards"]) document.getElementById(id).hidden = noGym;
   if(noGym){
     const runToday = schedule().some(x=>x.date===date && x.type==="run");
