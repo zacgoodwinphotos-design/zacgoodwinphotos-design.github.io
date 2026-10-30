@@ -147,6 +147,12 @@ th{font-weight:500;color:var(--muted);font-size:12px;border-top:0}
 .ctext span{font-size:12px;color:var(--muted)}
 .counter .linkbtn{margin-top:0}
 .missed{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:12px;background:var(--hold-bg);border:1px solid var(--line)}
+.missed summary{cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;list-style:none}
+.missed summary::-webkit-details-marker{display:none}
+.missed summary::after{content:"Show";font-size:13px;font-weight:600;color:var(--accent-text)}
+.missed[open] summary::after{content:"Hide"}
+.mcount{flex:1;font-size:12px;color:var(--muted)}
+.mbody{display:flex;flex-direction:column;gap:8px;margin-top:8px}
 .missed .mh{margin:0;font-size:12px;font-weight:700;color:var(--hold);letter-spacing:.04em;text-transform:uppercase}
 .mrow{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px}
 .mrow .bbtns{flex-wrap:nowrap}
@@ -554,6 +560,7 @@ function runGuide(r, week){
   return `<div class="guide"><p><b>What it is:</b> ${g.what}</p><p><b>Why you're doing it:</b> ${g.why}</p><ul>${items}</ul></div>`;
 }
 const guideOpen = new Set();
+let missedOpen = false;
 let CHANGES = {}, chgCol = null, pendingCant = null, lastMsg = "";
 const HARD = new Set(["Intervals","Tempo","Benchmark"]);
 const BASE = (()=>{ const out=[]; for(let i=0;i<28;i++){ const iso=isoOf(i), r=runFor(i), g=gymFor(i), w=Math.floor(i/7);
@@ -686,7 +693,7 @@ function renderToday(){
     const rows = list.map(x=>{
       const done = sessDone(x);
       const from = x.moved ? `<span class="tag">Moved from ${niceDay(x.orig)}</span>` : "";
-      const cant = canChange && !done ? `<button class="linkbtn" data-cant="${x.id}">${date < now ? "Missed it? Reschedule" : "Can't do this"}</button>` : "";
+      const cant = date >= now && !done ? `<button class="linkbtn" data-cant="${x.id}">Can't do this</button>` : "";
       if(x.type==="run"){
         const r=x.run;
         return `<div class="row"><div class="k"><b>${times[x.id]}</b><span>Run</span></div>
@@ -722,15 +729,21 @@ function renderToday(){
         <div class="bbtns"><button class="add" data-cantgo="move">Find another day</button><button class="ghost" data-cantgo="skip">Skip it</button><button class="ghost" data-cantgo="cancel">Cancel</button></div></div>`;
     }
     const msg = lastMsg ? `<p class="cantmsg" role="status">${lastMsg}</p>` : "";
-    let missedBox = "";
-    if(date === now){
-      const missed = sched.filter(x => x.date && x.date < now && dayIdx(x.date) >= lookStart && !sessDone(x) && !(x.type==="run" && x.run.opt));
-      if(missed.length) missedBox = `<div class="missed"><p class="mh">Not logged yet</p>${missed.map(x => `<div class="mrow">
+    /* Missed sessions: shown on the day they were missed once that day is over, and on rest days as a collapsible list. */
+    const missedRow = x => `<div class="mrow">
           <div><b>${sessName(x)}</b><span>${niceDay(x.date)} · ${x.type==="run" ? "Run" : "Gym"}</span></div>
           <div class="bbtns"><button class="mini" data-cant="${x.id}">Reschedule</button>${x.type==="run"
             ? `<button class="mini" data-run="${x.date}">I did it</button>`
-            : `<button class="mini" data-logpast="${x.date}|${x.gym}">Log it</button>`}</div></div>`).join("")}
-        <p class="mnote">Reschedule finds the next safe day this week using the same rules as Can't do this, or skips it if there isn't one. Did the session but forgot to log it? Use I did it or Log it.</p></div>`;
+            : `<button class="mini" data-logpast="${x.date}|${x.gym}">Log it</button>`}</div></div>`;
+    const MNOTE = `<p class="mnote">Reschedule finds the next safe day this week using the same rules as Can't do this, or skips it if there isn't one. Did the session but forgot to log it? Use I did it or Log it.</p>`;
+    let missedBox = "";
+    if(recent){
+      const here = list.filter(x => !sessDone(x) && !(x.type==="run" && x.run.opt));
+      if(here.length) missedBox = `<div class="missed"><p class="mh">Missed ${here.length===1?"session":"sessions"}</p>${here.map(missedRow).join("")}${MNOTE}</div>`;
+    } else if(date === now && !BASE.some(b => b.orig===now && !(b.type==="run" && b.run.opt))){   // a planned rest day
+      const missed = sched.filter(x => x.date && x.date < now && dayIdx(x.date) >= lookStart && !sessDone(x) && !(x.type==="run" && x.run.opt));
+      if(missed.length) missedBox = `<details class="missed" id="resched"${missedOpen?" open":""}><summary><span class="mh">Reschedule days</span><span class="mcount">${missed.length} missed</span></summary>
+        <div class="mbody">${missed.map(missedRow).join("")}${MNOTE}</div></details>`;
     }
     body = `${msg}${missedBox}<div class="rows">${rows}${ghosts}</div>${empty}${restNote}${dayBtn}${panel}`;
   }
@@ -739,6 +752,7 @@ function renderToday(){
     <div class="legend"><span><span class="dot run done"></span>Run</span><span><span class="dot gym done"></span>Gym</span><span>Filled when done</span></div>
     ${body}`;
 }
+document.getElementById("today").addEventListener("toggle",e=>{ if(e.target.id==="resched") missedOpen = e.target.open; }, true);
 document.getElementById("today").addEventListener("click",e=>{
   const d=e.target.closest("[data-date]");
   if(d){ dayInput.value=d.dataset.date; lastMsg=""; pendingCant=null; autoTab(); render(); return; }
