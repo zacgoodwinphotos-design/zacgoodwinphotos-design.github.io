@@ -92,6 +92,12 @@ table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:ta
 td,th{text-align:left;padding:6px 8px 6px 0;border-top:1px solid var(--line);vertical-align:top}
 th{font-weight:500;color:var(--muted);font-size:12px;border-top:0}
 .today{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.planbar{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.planbar .legend{flex:1;min-width:0}
+.plantoggle{margin-top:0;flex:none}
+.plansum{margin:0;flex:1;min-width:0;font-size:14px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.cantmsg{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.msgx{flex:none;border:0;background:none;color:var(--muted);font-size:18px;line-height:1;padding:0 2px;cursor:pointer}
 .dayhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
 .dayhead h2{font-family:var(--font-display);font-weight:500;font-size:22px;margin:0;line-height:1.2}
 .wk{font-size:12px;color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums}
@@ -571,6 +577,7 @@ function runGuide(r, week){
 }
 const guideOpen = new Set();
 let missedOpen = false, missedDayOpen = true;
+let planOpen = (() => { try { return localStorage.getItem("fp.planOpen") !== "0"; } catch(_) { return true; } })();
 let CHANGES = {}, chgCol = null, pendingCant = null, lastMsg = "";
 const HARD = new Set(["Intervals","Tempo","Benchmark"]);
 const BASE = (()=>{ const out=[]; for(let i=0;i<28;i++){ const iso=isoOf(i), r=runFor(i), g=gymFor(i), w=Math.floor(i/7);
@@ -636,7 +643,7 @@ function safeDays(s, sched){
 function pickDay(id, iso){
   const s = schedule().find(x=>x.id===id); if(!s) return;
   if(iso===s.orig) undoChange(id); else applyChange(id, iso);
-  lastMsg = `${sessName(s)} moved to ${niceDay(iso)}.`; pendingCant = null; render();
+  lastMsg = `${sessName(s)} moved to ${niceDay(iso)}.`; pendingCant = null; autoTab(); render();
   requestAnimationFrame(()=>{ const m=document.querySelector(".cantmsg"); if(m) m.scrollIntoView({behavior:"smooth", block:"nearest"}); });
 }
 function cantDo(ids, mode){
@@ -665,6 +672,7 @@ function cantDo(ids, mode){
   }
   lastMsg = msgs.join(" ");
   pendingCant = null;
+  autoTab();
   render();
   requestAnimationFrame(()=>{ const m=document.querySelector(".cantmsg"); if(m) m.scrollIntoView({behavior:"smooth", block:"nearest"}); });
 }
@@ -697,7 +705,7 @@ function renderToday(){
       <span class="dn">${d.toLocaleDateString("en-GB",{weekday:"short"}).slice(0,2)}</span><span class="dd">${d.getDate()}</span><span class="dots">${dots}</span></button>`;
   }).join("");
   const nice = new Date(date+"T12:00:00").toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"short"});
-  let head, body;
+  let head, body, planSummary = "";
   if(i<0){
     head = `<div class="wk">Starts Mon 26 Oct</div>`;
     body = `<p class="planmsg">Your 4-week plan starts on Monday 26 October. Tap a day above to preview it.</p>`;
@@ -710,6 +718,7 @@ function renderToday(){
     const list = sched.filter(x=>x.date===date).sort((a,b)=>a.type==="run"?-1:1);
     const gone = sched.filter(x=>x.orig===date && x.date!==date);
     const times = timesFor(date, list);
+    planSummary = list.length ? list.map(x => `${times[x.id]} ${sessName(x)}${sessDone(x) ? " ✓" : ""}`).join(" · ") : "Rest day";
     const todayI = dayIdx(now), lookStart = Math.min(todayI - dowOf(todayI), todayI - 1);
     const recent = date < now && dayIdx(date) >= lookStart;      // earlier this week (or yesterday): still reschedulable
     const canChange = date >= now || recent;
@@ -755,7 +764,7 @@ function renderToday(){
         <p>Reschedule ${what}. Find another day picks the next safe day for you. Choose a day lists every day that keeps your plan's rules: no leg session the day before a hard or long run, and no hard days back to back.</p>
         <div class="bbtns"><button class="add" data-cantgo="move">Find another day</button><button class="ghost" data-cantgo="skip">Skip it</button><button class="ghost" data-cantgo="cancel">Cancel</button></div>${pick}</div>`;
     }
-    const msg = lastMsg ? `<p class="cantmsg" role="status">${lastMsg}</p>` : "";
+    const msg = lastMsg ? `<div class="cantmsg" role="status"><span>${lastMsg}</span><button class="msgx" data-dismiss aria-label="Dismiss message">×</button></div>` : "";
     /* Missed sessions: shown on the day they were missed once that day is over, and on rest days as a collapsible list. */
     const missedRow = x => `<div class="mrow">
           <div><b>${sessName(x)}</b><span>${niceDay(x.date)} · ${x.type==="run" ? "Run" : "Gym"}</span></div>
@@ -790,10 +799,12 @@ function renderToday(){
     }
     body = `${msg}${missedBox}<div class="rows">${rowsHtml}${ghosts}</div>${empty}${restNote}${dayBtn}${panel}`;
   }
+  const toggle = `<button class="linkbtn plantoggle" data-plantoggle aria-expanded="${planOpen}">${planOpen ? "Hide" : "Show"}</button>`;
   el.innerHTML = `<div class="dayhead"><h2>${nice}</h2>${head}</div>
     <div class="week" role="group" aria-label="Week">${strip}</div>
-    <div class="legend"><span><span class="dot run done"></span>Run</span><span><span class="dot gym done"></span>Gym</span><span>Filled when done</span></div>
-    ${body}`;
+    ${planOpen
+      ? `<div class="planbar"><div class="legend"><span><span class="dot run done"></span>Run</span><span><span class="dot gym done"></span>Gym</span><span>Filled when done</span></div>${toggle}</div>${body}`
+      : `<div class="planbar"><p class="plansum">${planSummary || "Plan hidden"}</p>${toggle}</div>`}`;
 }
 document.getElementById("today").addEventListener("toggle",e=>{ if(e.target.id==="resched") missedOpen = e.target.open; if(e.target.id==="missedday") missedDayOpen = e.target.open; updateCollapseBtn(); }, true);
 document.getElementById("backupBox").addEventListener("toggle", ()=>updateCollapseBtn());
@@ -805,7 +816,7 @@ function anyOpen(){
 function updateCollapseBtn(){ const b=document.getElementById("collapseAll"); if(b) b.hidden = !anyOpen(); }
 document.getElementById("collapseAll").addEventListener("click", ()=>{
   posesOpen.clear(); guideOpen.clear(); setsOpen.clear(); open.clear();
-  missedOpen = false; missedDayOpen = false; pendingCant = null;
+  missedOpen = false; missedDayOpen = false; pendingCant = null; lastMsg = "";
   document.getElementById("backupBox").open = false;
   render(); updateCollapseBtn(); toast("All sections collapsed");
 });
@@ -822,6 +833,8 @@ document.getElementById("today").addEventListener("click",e=>{
   if(pk && pendingCant){ pickDay(pendingCant.ids[0], pk.dataset.pickday); return; }
   const go=e.target.closest("[data-cantgo]");
   if(go){ const m=go.dataset.cantgo; if(m==="cancel"){ pendingCant=null; render(); } else if(pendingCant) cantDo(pendingCant.ids, m); return; }
+  if(e.target.closest("[data-plantoggle]")){ planOpen = !planOpen; try{ localStorage.setItem("fp.planOpen", planOpen ? "1" : "0"); }catch(_){} pendingCant = null; render(); return; }
+  if(e.target.closest("[data-dismiss]")){ lastMsg = ""; render(); return; }
   const gd=e.target.closest("[data-guide]");
   if(gd){ const id=gd.dataset.guide; guideOpen.has(id)?guideOpen.delete(id):guideOpen.add(id); render(); return; }
   const u=e.target.closest("[data-undo]");
