@@ -146,6 +146,14 @@ th{font-weight:500;color:var(--muted);font-size:12px;border-top:0}
 .ctext b{font-size:14px}
 .ctext span{font-size:12px;color:var(--muted)}
 .counter .linkbtn{margin-top:0}
+.missed{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:12px;background:var(--hold-bg);border:1px solid var(--line)}
+.missed .mh{margin:0;font-size:12px;font-weight:700;color:var(--hold);letter-spacing:.04em;text-transform:uppercase}
+.mrow{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px}
+.mrow .bbtns{flex-wrap:nowrap}
+.mrow b{display:block;font-size:14px}
+.mrow span{font-size:12px;color:var(--muted)}
+.mrow .bbtns{gap:6px}
+.mnote{margin:0;font-size:12px;color:var(--muted)}
 .restline{margin:0;font-size:13px;color:var(--muted)}
 .row{grid-template-columns:52px minmax(0,1fr) auto}
 .backup{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px}
@@ -672,11 +680,13 @@ function renderToday(){
     const list = sched.filter(x=>x.date===date).sort((a,b)=>a.type==="run"?-1:1);
     const gone = sched.filter(x=>x.orig===date && x.date!==date);
     const times = timesFor(date, list);
-    const canChange = date >= now;
+    const todayI = dayIdx(now), lookStart = Math.min(todayI - dowOf(todayI), todayI - 1);
+    const recent = date < now && dayIdx(date) >= lookStart;      // earlier this week (or yesterday): still reschedulable
+    const canChange = date >= now || recent;
     const rows = list.map(x=>{
       const done = sessDone(x);
       const from = x.moved ? `<span class="tag">Moved from ${niceDay(x.orig)}</span>` : "";
-      const cant = canChange && !done ? `<button class="linkbtn" data-cant="${x.id}">Can't do this</button>` : "";
+      const cant = canChange && !done ? `<button class="linkbtn" data-cant="${x.id}">${date < now ? "Missed it? Reschedule" : "Can't do this"}</button>` : "";
       if(x.type==="run"){
         const r=x.run;
         return `<div class="row"><div class="k"><b>${times[x.id]}</b><span>Run</span></div>
@@ -702,7 +712,7 @@ function renderToday(){
     const restNote = list.length && !list.some(x=>x.type==="gym") && !gone.some(x=>x.type==="gym") ? `<p class="restline">No gym today${dowOf(i)===6?": it's long-run day":dowOf(i)===5?": rest before tomorrow's long run":""}.</p>`
                    : list.length && !list.some(x=>x.type==="run") && !gone.some(x=>x.type==="run") ? `<p class="restline">No run today.</p>` : "";
     const open = list.filter(x=>!sessDone(x));
-    const dayBtn = canChange && open.length > 1 ? `<button class="linkbtn" data-cantday="${date}">Can't train today</button>` : "";
+    const dayBtn = date >= now && open.length > 1 ? `<button class="linkbtn" data-cantday="${date}">Can't train today</button>` : "";
     let panel = "";
     if(pendingCant){
       const ids = pendingCant.ids, one = ids.length===1 ? sched.find(x=>x.id===ids[0]) : null;
@@ -712,7 +722,17 @@ function renderToday(){
         <div class="bbtns"><button class="add" data-cantgo="move">Find another day</button><button class="ghost" data-cantgo="skip">Skip it</button><button class="ghost" data-cantgo="cancel">Cancel</button></div></div>`;
     }
     const msg = lastMsg ? `<p class="cantmsg" role="status">${lastMsg}</p>` : "";
-    body = `${msg}<div class="rows">${rows}${ghosts}</div>${empty}${restNote}${dayBtn}${panel}`;
+    let missedBox = "";
+    if(date === now){
+      const missed = sched.filter(x => x.date && x.date < now && dayIdx(x.date) >= lookStart && !sessDone(x) && !(x.type==="run" && x.run.opt));
+      if(missed.length) missedBox = `<div class="missed"><p class="mh">Not logged yet</p>${missed.map(x => `<div class="mrow">
+          <div><b>${sessName(x)}</b><span>${niceDay(x.date)} · ${x.type==="run" ? "Run" : "Gym"}</span></div>
+          <div class="bbtns"><button class="mini" data-cant="${x.id}">Reschedule</button>${x.type==="run"
+            ? `<button class="mini" data-run="${x.date}">I did it</button>`
+            : `<button class="mini" data-logpast="${x.date}|${x.gym}">Log it</button>`}</div></div>`).join("")}
+        <p class="mnote">Reschedule finds the next safe day this week using the same rules as Can't do this, or skips it if there isn't one. Did the session but forgot to log it? Use I did it or Log it.</p></div>`;
+    }
+    body = `${msg}${missedBox}<div class="rows">${rows}${ghosts}</div>${empty}${restNote}${dayBtn}${panel}`;
   }
   el.innerHTML = `<div class="dayhead"><h2>${nice}</h2>${head}</div>
     <div class="week" role="group" aria-label="Week">${strip}</div>
@@ -741,6 +761,8 @@ document.getElementById("today").addEventListener("click",e=>{
       .catch(()=>{ if(was) RUNDONE[iso]=true; else delete RUNDONE[iso]; render(); toast("Couldn't save that. Check your connection and try again."); });
     return;
   }
+  const lp=e.target.closest("[data-logpast]");
+  if(lp){ const [iso,key]=lp.dataset.logpast.split("|"); dayInput.value=iso; current=key; lastMsg=""; pendingCant=null; render(); document.getElementById("tabs").scrollIntoView({behavior:"smooth",block:"start"}); toast("Logging sets for "+niceDay(iso)); return; }
   const o=e.target.closest("[data-open]");
   if(o){ current=o.dataset.open; render(); document.getElementById("tabs").scrollIntoView({behavior:"smooth",block:"start"}); }
 });
