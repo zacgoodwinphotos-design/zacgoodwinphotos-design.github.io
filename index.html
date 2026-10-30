@@ -630,6 +630,7 @@ function pickDay(id, iso){
   const s = schedule().find(x=>x.id===id); if(!s) return;
   if(iso===s.orig) undoChange(id); else applyChange(id, iso);
   lastMsg = `${sessName(s)} moved to ${niceDay(iso)}.`; pendingCant = null; render();
+  requestAnimationFrame(()=>{ const m=document.querySelector(".cantmsg"); if(m) m.scrollIntoView({behavior:"smooth", block:"nearest"}); });
 }
 function cantDo(ids, mode){
   const msgs = [], handled = new Set();
@@ -658,6 +659,7 @@ function cantDo(ids, mode){
   lastMsg = msgs.join(" ");
   pendingCant = null;
   render();
+  requestAnimationFrame(()=>{ const m=document.querySelector(".cantmsg"); if(m) m.scrollIntoView({behavior:"smooth", block:"nearest"}); });
 }
 function gymOn(iso){ const g = schedule().find(x => x.date===iso && x.type==="gym"); return g ? g.gym : null; }
 function autoTab(){
@@ -768,7 +770,17 @@ function renderToday(){
       if(missed.length || ahead.length) missedBox = `<details class="missed" id="resched"${missedOpen?" open":""}><summary><span class="mh">Reschedule days</span><span class="mcount">${count}</span></summary>
         <div class="mbody">${missed.length ? `<p class="msub">Missed</p>${missed.map(missedRow).join("")}` : ""}${ahead.length ? `<p class="msub">Coming up ${wkS+6 < todayI+7 && wkS <= todayI ? "this week" : "in week "+(Math.floor(i/7)+1)}</p>${ahead.map(aheadRow).join("")}` : ""}${MNOTE}</div></details>`;
     }
-    body = `${msg}${missedBox}<div class="rows">${rows}${ghosts}</div>${empty}${restNote}${dayBtn}${panel}`;
+    let rowsHtml = rows;
+    if(panel && pendingCant){
+      const anchor = pendingCant.anchor, key = anchor==="box" ? "missedBox" : anchor==="day" ? "day" : "rows";
+      const tag = `data-cant="${pendingCant.ids[0]}"`;
+      const insertAfterRow = html => { const at = html.indexOf(tag); if(at<0) return null;
+        const ends = ['<div class="mrow">','<p class="msub">','<p class="mnote">'].map(m=>html.indexOf(m, at)).filter(n=>n>=0);
+        if(!ends.length) return null; const close = Math.min(...ends); return html.slice(0, close) + panel + html.slice(close); };
+      if(key==="missedBox"){ const r = insertAfterRow(missedBox); if(r){ missedBox = r; panel = ""; } }
+      else if(key==="rows"){ const at = rowsHtml.indexOf(tag); if(at>=0){ const next = rowsHtml.indexOf('<div class="row', at); rowsHtml = next<0 ? rowsHtml + panel : rowsHtml.slice(0,next) + panel + rowsHtml.slice(next); panel = ""; } }
+    }
+    body = `${msg}${missedBox}<div class="rows">${rowsHtml}${ghosts}</div>${empty}${restNote}${dayBtn}${panel}`;
   }
   el.innerHTML = `<div class="dayhead"><h2>${nice}</h2>${head}</div>
     <div class="week" role="group" aria-label="Week">${strip}</div>
@@ -780,9 +792,11 @@ document.getElementById("today").addEventListener("click",e=>{
   const d=e.target.closest("[data-date]");
   if(d){ dayInput.value=d.dataset.date; lastMsg=""; pendingCant=null; autoTab(); render(); return; }
   const c=e.target.closest("[data-cant]");
-  if(c){ pendingCant={ids:[c.dataset.cant]}; lastMsg=""; render(); return; }
+  if(c){ pendingCant={ids:[c.dataset.cant], anchor: c.closest(".missed") ? "box" : "rows"}; lastMsg=""; render();
+    requestAnimationFrame(()=>{ const pn=document.querySelector(".cantpanel"); if(pn) pn.scrollIntoView({behavior:"smooth", block:"nearest"}); }); return; }
   const cd=e.target.closest("[data-cantday]");
-  if(cd){ const iso=cd.dataset.cantday; pendingCant={ids:schedule().filter(x=>x.date===iso && !sessDone(x)).sort((a,b)=>a.type==="run"?-1:1).map(x=>x.id)}; lastMsg=""; render(); return; }
+  if(cd){ const iso=cd.dataset.cantday; pendingCant={ids:schedule().filter(x=>x.date===iso && !sessDone(x)).sort((a,b)=>a.type==="run"?-1:1).map(x=>x.id), anchor:"day"}; lastMsg=""; render();
+    requestAnimationFrame(()=>{ const pn=document.querySelector(".cantpanel"); if(pn) pn.scrollIntoView({behavior:"smooth", block:"nearest"}); }); return; }
   const pk=e.target.closest("[data-pickday]");
   if(pk && pendingCant){ pickDay(pendingCant.ids[0], pk.dataset.pickday); return; }
   const go=e.target.closest("[data-cantgo]");
