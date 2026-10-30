@@ -53,7 +53,8 @@ input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline
 .top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
 .name{font-family:var(--font-display);font-weight:600;font-size:20px;line-height:1.2}
 .target{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
-.chip{font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.chip{font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;white-space:nowrap;text-align:center;line-height:1.3}
+.chip small{display:block;font-size:10px;font-weight:500;opacity:.7;letter-spacing:.02em}
 .chip.up{background:var(--up-bg);color:var(--up)} .chip.hold{background:var(--hold-bg);color:var(--hold)} .chip.new{background:var(--bg);color:var(--muted)}
 .last{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
 .last b{color:var(--ink);font-weight:600}
@@ -275,6 +276,9 @@ const START_KG = {
   "Single-Leg RDL":[7.5,"your recent single-leg RDLs"], "Seated Leg Curl":[25,"your recent leg curls"],
   "Single-Leg Calf Raise":[0,"bodyweight is plenty to start"], "Hip Abductor":[55,"your recent abductor sessions"]
 };
+/* Lifts where the weight is per dumbbell, one in each hand (or one arm at a time). */
+const PER_ARM = new Set(["Dumbbell Row","Dumbbell Shoulder Press","Hammer Curl","Dumbbell Bench Press","Dumbbell Bicep Curl",
+  "Incline Dumbbell Curl","Dumbbell Skullcrusher","Dumbbell Lunge","Single-Leg RDL"]);
 const PLAN = [
   {key:"ua", label:"Upper A", day:"Mon", ex:[
     ["Machine Bench Press",4,8,10,2.5],["Dumbbell Row",4,10,12,2],["Dumbbell Shoulder Press",3,10,12,2],["Machine Fly",3,12,15,2.5],["Cable Tricep Pushdown",3,12,15,2.5],["Hammer Curl",3,10,12,2]]},
@@ -404,7 +408,7 @@ function render(){
         <button class="add" id="add-${sid}" ${db?"":"disabled"}>Add set ${nextSet}</button>
       </form>`;
     return `<section class="card">
-      <div class="top"><div><div class="name">${name}</div><div class="target">${nSets} sets × ${lo}–${hi} ${timed?"seconds":"reps"}</div></div><span class="chip ${s.cls}">${s.text}</span></div>
+      <div class="top"><div><div class="name">${name}</div><div class="target">${nSets} sets × ${lo}–${hi} ${timed?"seconds":"reps"}</div></div><span class="chip ${s.cls}">${s.text}${PER_ARM.has(name) && /kg/.test(s.text) ? `<small>per arm</small>` : ""}</span></div>
       <button class="hist" data-pose="${name}" aria-expanded="${posesOpen.has(name)}">${posesOpen.has(name)?"Hide form images":"Show form images"}</button>
       ${posesOpen.has(name)?poseHtml:""}
       <div class="last">${lastTxt}</div>
