@@ -178,6 +178,11 @@ label.ghost{display:inline-block}
 .confirm{display:flex;flex-direction:column;gap:10px;background:var(--bg);border-radius:12px;padding:12px}
 .confirm p{color:var(--ink)}
 .note{font-size:12px;color:var(--muted)}
+.collapseall{position:fixed;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:20;
+  font:inherit;font-size:13px;font-weight:600;padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);
+  box-shadow:0 4px 14px rgba(0,0,0,.14);cursor:pointer}
+.collapseall::before{content:"";display:inline-block;width:8px;height:8px;margin-right:8px;border-left:2px solid var(--accent-text);border-top:2px solid var(--accent-text);transform:translateY(2px) rotate(45deg)}
+body{padding-bottom:72px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:10px;font-size:13px}
 @media (prefers-reduced-motion:no-preference){.chip,.sets li,.fill{transition:background .2s,border-color .2s,width .1s linear}}
 </style>
@@ -207,6 +212,7 @@ label.ghost{display:inline-block}
   <p class="note">Plank uses the built-in timer: a 5-second countdown, then beeps when you reach your target and the top of the range. Bodyweight lifts are logged at 0 kg and progress by reps.</p>
 </div>
 <div class="toast" id="toast" hidden></div>
+<button class="collapseall" id="collapseAll" hidden>Collapse all</button>
 
 <script>
 /* Local storage layer: stands in for the cloud database and file saving, so the app runs entirely on this device. */
@@ -413,6 +419,7 @@ function render(){
   }).join("");
   document.getElementById("cards").innerHTML = html;
   tick();
+  if(typeof updateCollapseBtn==="function") updateCollapseBtn();
 }
 
 /* Plank timer: 5 s get-ready countdown, then counts up. Beeps at the target and at the top of the range. */
@@ -563,7 +570,7 @@ function runGuide(r, week){
   return `<div class="guide"><p><b>What it is:</b> ${g.what}</p><p><b>Why you're doing it:</b> ${g.why}</p><ul>${items}</ul></div>`;
 }
 const guideOpen = new Set();
-let missedOpen = false;
+let missedOpen = false, missedDayOpen = true;
 let CHANGES = {}, chgCol = null, pendingCant = null, lastMsg = "";
 const HARD = new Set(["Intervals","Tempo","Benchmark"]);
 const BASE = (()=>{ const out=[]; for(let i=0;i<28;i++){ const iso=isoOf(i), r=runFor(i), g=gymFor(i), w=Math.floor(i/7);
@@ -759,7 +766,8 @@ function renderToday(){
     let missedBox = "";
     if(recent){
       const here = list.filter(x => !sessDone(x) && !(x.type==="run" && x.run.opt));
-      if(here.length) missedBox = `<div class="missed"><p class="mh">Missed ${here.length===1?"session":"sessions"}</p>${here.map(missedRow).join("")}${MNOTE}</div>`;
+      if(here.length) missedBox = `<details class="missed" id="missedday"${missedDayOpen?" open":""}><summary><span class="mh">Missed ${here.length===1?"session":"sessions"}</span><span class="mcount">${here.length} to sort out</span></summary>
+        <div class="mbody">${here.map(missedRow).join("")}${MNOTE}</div></details>`;
     } else {   // every other day: missed sessions plus the rest of this week, so you can plan ahead
       const missed = sched.filter(x => x.date && x.date < now && dayIdx(x.date) >= lookStart && !sessDone(x) && !(x.type==="run" && x.run.opt));
       const wkS = i - dowOf(i), from = Math.max(wkS, todayI);
@@ -787,7 +795,20 @@ function renderToday(){
     <div class="legend"><span><span class="dot run done"></span>Run</span><span><span class="dot gym done"></span>Gym</span><span>Filled when done</span></div>
     ${body}`;
 }
-document.getElementById("today").addEventListener("toggle",e=>{ if(e.target.id==="resched") missedOpen = e.target.open; }, true);
+document.getElementById("today").addEventListener("toggle",e=>{ if(e.target.id==="resched") missedOpen = e.target.open; if(e.target.id==="missedday") missedDayOpen = e.target.open; updateCollapseBtn(); }, true);
+document.getElementById("backupBox").addEventListener("toggle", ()=>updateCollapseBtn());
+/* Collapse all: closes every expandable section in one tap. */
+function anyOpen(){
+  return posesOpen.size || guideOpen.size || setsOpen.size || open.size || missedOpen || pendingCant
+    || !!document.querySelector("#missedday[open]") || document.getElementById("backupBox").open;
+}
+function updateCollapseBtn(){ const b=document.getElementById("collapseAll"); if(b) b.hidden = !anyOpen(); }
+document.getElementById("collapseAll").addEventListener("click", ()=>{
+  posesOpen.clear(); guideOpen.clear(); setsOpen.clear(); open.clear();
+  missedOpen = false; missedDayOpen = false; pendingCant = null;
+  document.getElementById("backupBox").open = false;
+  render(); updateCollapseBtn(); toast("All sections collapsed");
+});
 document.getElementById("today").addEventListener("click",e=>{
   const d=e.target.closest("[data-date]");
   if(d){ dayInput.value=d.dataset.date; lastMsg=""; pendingCant=null; autoTab(); render(); return; }
