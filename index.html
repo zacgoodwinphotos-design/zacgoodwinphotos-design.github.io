@@ -391,7 +391,8 @@ function render(){
     const s = suggest(ex,last);
     const dr = drafts[name] || {kg: s.kg ?? "", reps: s.reps};
     const timed = isTimed(ex);
-    const hitOf = st => timed ? (st.secs||0)>=s.aim : st.reps>=hi;
+    const hitOf = st => timed ? (st.secs||0)>=s.aim : st.reps>=lo;        // in the target range
+    const topOf_ = st => timed ? (st.secs||0)>=hi : st.reps>=hi;          // top of the range: earns a weight increase
     const sets = (todayRec?.sets||[]).map((st,i)=>`<li class="${hitOf(st)?"hit":""}">${timed?st.secs+" s":fmtKg(st.kg)+" kg × "+st.reps}<button aria-label="Remove set ${i+1}" data-rm="${i}" data-ex="${name}">×</button></li>`).join("");
     const lastTxt = last ? `Last ${fmtDate(last.date)}: <b>${last.sets.map(setTxt).join(", ")}</b>`
       : s.first ? `<b>First time.</b> Suggested start: ${s.first[0]>0 ? fmtKg(s.first[0])+" kg" : "bodyweight"} (${s.first[1]}). Do a lighter warm-up set first. You should finish each set feeling you could do 2–3 more reps; if it's much easier or harder, adjust by one step and the app will take it from there.`
@@ -422,7 +423,12 @@ function render(){
       ${todayRec?.sets?.length ? (()=>{
         const list = todayRec.sets, done = list.length, hits = list.filter(hitOf).length, isOpen = setsOpen.has(name);
         const pips = Array.from({length:Math.max(nSets, done)}, (_,k)=>`<span class="pip ${k<done?(hitOf(list[k])?"on hit":"on"):""}"></span>`).join("");
-        const sum = done>=nSets ? (hits===done ? "All sets hit the target" : `${hits} of ${done} hit the target`) : `${nSets-done} to go`;
+        const tops = list.filter(topOf_).length;
+        let sum;
+        if(done < nSets) sum = `${nSets-done} to go`;
+        else if(hits < done) sum = `${hits} of ${done} in the target range`;
+        else if(timed) sum = tops===done ? "All holds hit the target · try a harder variation next time" : "All holds hit today's target";
+        else sum = tops>=nSets ? `All sets hit the target · go up next time` : `All sets hit the target · ${hi} reps on every set to go up`;
         return `<div class="counter ${done>=nSets?"full":""}">
           <div class="pips" aria-hidden="true">${pips}</div>
           <div class="ctext"><b>${done} of ${nSets} sets done</b><span>${sum}</span></div>
