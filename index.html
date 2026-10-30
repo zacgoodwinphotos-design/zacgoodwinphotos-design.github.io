@@ -23,16 +23,16 @@ img{max-width:100%}
 /* Layout: one narrow column in Claude's palette: ivory ground, clay accent, serif headings over a system sans UI. */
 :root{
   --bg:#faf9f5; --surface:#ffffff; --ink:#141413; --muted:#73726c; --line:#e8e6dc;
-  --accent:#d97757; --accent-text:#c6613f; --accent-ink:#ffffff; --up:#3d7a4a; --up-bg:#e6efe3; --hold:#94621a; --hold-bg:#f6ecd9;
+  --accent:#d97757; --accent-text:#c6613f; --accent-ink:#ffffff; --up:#3d7a4a; --up-bg:#e6efe3; --hold:#94621a; --hold-bg:#f6ecd9; --bad:#b3261e; --bad-bg:#fbe4e1;
   --font-display:"Source Serif 4",Georgia,"Times New Roman",serif;
   --font-body:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#262624; --surface:#30302e; --ink:#faf9f5; --muted:#a6a39b; --line:#43423e;
-  --accent:#d97757; --accent-text:#e08a6b; --accent-ink:#ffffff; --up:#8cc396; --up-bg:#2c3a2e; --hold:#e2b66a; --hold-bg:#3d3424; color-scheme:dark}}
+  --accent:#d97757; --accent-text:#e08a6b; --accent-ink:#ffffff; --up:#8cc396; --up-bg:#2c3a2e; --hold:#e2b66a; --hold-bg:#3d3424; --bad:#f2928a; --bad-bg:#45272a; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#262624; --surface:#30302e; --ink:#faf9f5; --muted:#a6a39b; --line:#43423e;
-  --accent:#d97757; --accent-text:#e08a6b; --accent-ink:#ffffff; --up:#8cc396; --up-bg:#2c3a2e; --hold:#e2b66a; --hold-bg:#3d3424; color-scheme:dark}
+  --accent:#d97757; --accent-text:#e08a6b; --accent-ink:#ffffff; --up:#8cc396; --up-bg:#2c3a2e; --hold:#e2b66a; --hold-bg:#3d3424; --bad:#f2928a; --bad-bg:#45272a; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.5;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 48px}
@@ -42,9 +42,20 @@ h1{font-family:var(--font-display);font-weight:500;font-size:32px;margin:0;line-
 .sub{color:var(--muted);font-size:13px;margin-top:4px;max-width:44ch}
 label.date{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--muted)}
 .datebar{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}
-#day{box-sizing:border-box;height:44px;padding-block:0;margin:0}
+#day{box-sizing:border-box;height:44px;padding-block:0;margin:0;width:124px}
+.datebar{gap:6px;flex-wrap:nowrap}
+.navrow{display:flex;gap:6px;flex:1;min-width:0}
 .weeknav{display:flex;gap:6px}
-.navbtn{box-sizing:border-box;width:44px;height:44px;margin:0;display:grid;place-items:center;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;padding:0}
+.wstats{display:flex;gap:6px;flex:1;min-width:0}
+.wstat{flex:1 1 0;min-width:46px;height:44px;box-sizing:border-box;border-radius:10px;border:1px solid var(--line);background:var(--surface);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;font-variant-numeric:tabular-nums;padding:0 4px}
+.wstat span{font-size:10px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;opacity:.85}
+.wstat b{font-size:13px;white-space:nowrap}
+.wstat.red{background:var(--bad-bg);border-color:var(--bad);color:var(--bad)}
+.wstat.yellow{background:var(--hold-bg);border-color:var(--hold);color:var(--hold)}
+.wstat.green{background:var(--up-bg);border-color:var(--up);color:var(--up)}
+.wstat.none{color:var(--muted)}
+.navbtn{box-sizing:border-box;width:40px;height:44px;margin:0;display:grid;place-items:center;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;padding:0}
 .navbtn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .navbtn:disabled{opacity:.4;cursor:default}
 #wkHome:not(:disabled){color:var(--accent-text);border-color:var(--accent)}
@@ -214,11 +225,12 @@ body{padding-bottom:72px}
     </div>
     <div class="datebar">
       <label class="date" for="day">Date<input type="date" id="day"></label>
-      <div class="weeknav" role="group" aria-label="Change week">
+      <div class="navrow"><div class="weeknav" role="group" aria-label="Change week">
         <button class="navbtn" id="wkPrev" aria-label="Previous week" title="Previous week"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
         <button class="navbtn" id="wkHome" aria-label="Back to today" title="Back to today"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7"/><path d="M6 10v9h4v-5h4v5h4v-9"/></svg></button>
         <button class="navbtn" id="wkNext" aria-label="Next week" title="Next week"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
       </div>
+      <div class="wstats" id="wstats" aria-live="polite"></div></div>
     </div>
   </header>
   <section class="today" id="today" aria-label="Daily overview"></section>
@@ -468,6 +480,7 @@ function render(){
   tick();
   if(typeof updateCollapseBtn==="function") updateCollapseBtn();
   const hb = document.getElementById("wkHome"); if(hb) hb.disabled = (dayInput.value||today()) === today();
+  renderWeekStats();
 }
 
 /* Plank timer: 5 s get-ready countdown, then counts up. Beeps at the target and at the top of the range. */
@@ -898,6 +911,25 @@ document.getElementById("today").addEventListener("click",e=>{
 });
 dayInput.addEventListener("change",()=>{ lastMsg=""; pendingCant=null; gymAnyway=false; autoTab(); render(); });
 /* Week navigation: step a week back or forward (same weekday), or jump home to today. */
+/* Week tiles: km run and gym sessions done in the week being viewed, against that week's plan.
+   Red under 70% of the target, yellow from 70%, green once the target is reached. */
+const kmOf = r => { const nums = (r.km.match(/\d+(\.\d+)?/g)||[]).map(Number);
+  return /–|-/.test(r.km.split("km")[0]) ? (nums[0]+nums[1])/2 : nums.reduce((a,b)=>a+b,0); };
+function renderWeekStats(){
+  const el = document.getElementById("wstats"); if(!el) return;
+  const i = dayIdx(dayInput.value||today()), wS = i - dowOf(i), wE = wS + 6;
+  const inWeek = iso => { const k = dayIdx(iso); return k>=wS && k<=wE; };
+  const inPlan = wS>=0 && wS<=27;
+  const sched = schedule();
+  const kmDone = sched.filter(x => x.type==="run" && x.date && inWeek(x.date) && RUNDONE[x.date]).reduce((a,x)=>a+kmOf(x.run),0);
+  const kmTarget = BASE.filter(b => b.type==="run" && !b.run.opt && inWeek(b.orig)).reduce((a,b)=>a+kmOf(b.run),0);
+  const gymDays = new Set(Object.values(LOG).filter(r => r && r.sets && r.sets.length && inWeek(r.date)).map(r=>r.date)).size;
+  const gymTarget = BASE.filter(b => b.type==="gym" && inWeek(b.orig)).length;
+  const band = (done, target) => !inPlan || !target ? "none" : done >= target ? "green" : done >= 0.7*target ? "yellow" : "red";
+  const fmt = n => (Math.round(n*10)/10).toString();
+  el.innerHTML = `<div class="wstat ${band(kmDone,kmTarget)}" title="Running this week: ${fmt(kmDone)} of ${fmt(kmTarget)} km"><span>Km</span><b>${fmt(kmDone)}${inPlan?"/"+fmt(kmTarget):""}</b></div>
+    <div class="wstat ${band(gymDays,gymTarget)}" title="Gym sessions this week: ${gymDays} of ${gymTarget}"><span>Gym</span><b>${gymDays}${inPlan?"/"+gymTarget:""}</b></div>`;
+}
 function goToDate(iso){ dayInput.value = iso; lastMsg=""; pendingCant=null; gymAnyway=false; autoTab(); render(); }
 function shiftWeek(n){ const d = new Date((dayInput.value||today())+"T12:00:00"); d.setDate(d.getDate()+7*n);
   goToDate(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")); }
