@@ -1,5 +1,5 @@
 /* Offline support: keeps the app and its images on the phone. Bump VERSION when files change. */
-const VERSION = "fp-v19";
+const VERSION = "fp-v20";
 const ASSETS = [
  "./",
  "index.html",
@@ -60,7 +60,12 @@ self.addEventListener("fetch", e => {
   const url = new URL(req.url);
   if(url.origin === location.origin){
     if(req.mode === "navigate"){
-      e.respondWith(fetch(req).then(r => { const copy = r.clone(); caches.open(VERSION).then(c => c.put("index.html", copy)); return r; }).catch(() => caches.match("index.html")));
+      // Open instantly from the saved copy; fetch the latest version in the background for next time.
+      // With no saved copy yet, wait for the network, but give up after 8 s rather than hang.
+      const fresh = fetch(req).then(r => { if(r.ok){ const copy = r.clone(); caches.open(VERSION).then(c => c.put("index.html", copy)); } return r; });
+      e.waitUntil(fresh.catch(() => {}));
+      e.respondWith(caches.match("index.html").then(hit => hit || Promise.race([fresh, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 8000))])
+        .catch(() => new Response("<p style='font:16px system-ui;padding:24px'>Fitness Planner couldn't load. Check your connection and open it again.</p>", {headers:{"Content-Type":"text/html"}}))));
       return;
     }
     e.respondWith(caches.match(req).then(hit => hit || fetch(req)));
