@@ -208,6 +208,20 @@ label.ghost{display:inline-block}
 .confirm{display:flex;flex-direction:column;gap:10px;background:var(--bg);border-radius:12px;padding:12px}
 .confirm p{color:var(--ink)}
 .note{font-size:12px;color:var(--muted)}
+.resttimer{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));z-index:30;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.rtmain{display:flex;align-items:center;gap:6px;height:40px;min-width:40px;padding:0 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);
+  font:inherit;font-weight:700;font-size:16px;font-variant-numeric:tabular-nums;box-shadow:0 4px 14px rgba(0,0,0,.14);cursor:pointer;justify-content:center}
+.rtmain svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+.resttimer[data-state="idle"] .rtmain{padding:0;width:40px}
+.resttimer[data-state="idle"] .rttime{display:none}
+.resttimer[data-state="run"] .rtmain{border-color:var(--accent);color:var(--accent-text)}
+.resttimer[data-state="done"] .rtmain{border-color:var(--up);color:var(--up);background:var(--up-bg)}
+.rtbar{width:100%;height:3px;border-radius:2px;background:var(--line);overflow:hidden;display:none}
+.resttimer[data-state="run"] .rtbar{display:block}
+.rtbar span{display:block;height:100%;width:0;background:var(--accent)}
+.rtctl{display:flex;flex-direction:column;gap:6px;align-items:flex-end;padding:10px;border-radius:12px;background:var(--surface);border:1px solid var(--line);box-shadow:0 4px 14px rgba(0,0,0,.14)}
+.rtlabel{font-size:12px;color:var(--muted);max-width:220px;text-align:right}
+.rtbtns{display:flex;gap:6px}
 .collapseall{position:fixed;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:20;
   font:inherit;font-size:13px;font-weight:600;padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);
   box-shadow:0 4px 14px rgba(0,0,0,.14);cursor:pointer}
@@ -252,6 +266,17 @@ body{padding-bottom:72px}
 </div>
 <div class="toast" id="toast" hidden></div>
 <button class="collapseall" id="collapseAll" hidden>Collapse all</button>
+<div class="resttimer" id="restTimer" data-state="idle">
+  <button class="rtmain" id="rtMain" aria-label="Rest timer: tap to start a 90 second rest" title="Rest timer">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2"/><path d="M9 2h6"/></svg>
+    <span class="rttime" id="rtTime" aria-live="off"></span>
+  </button>
+  <div class="rtbar" aria-hidden="true"><span id="rtFill"></span></div>
+  <div class="rtctl" id="rtCtl" hidden>
+    <span class="rtlabel" id="rtLabel"></span>
+    <div class="rtbtns"><button class="mini" id="rtMinus">−15 s</button><button class="mini" id="rtPlus">+15 s</button><button class="mini" id="rtSkip">Skip</button></div>
+  </div>
+</div>
 
 <script>
 /* Local storage layer: stands in for the cloud database and file saving, so the app runs entirely on this device. */
@@ -486,6 +511,49 @@ function render(){
 /* Plank timer: 5 s get-ready countdown, then counts up. Beeps at the target and at the top of the range. */
 let T = null, ac = null, wake = null;
 const READY = 5000;
+/* Rest timer (top right). Starts after each logged set with the same rest as the Garmin workouts.
+   Tap it to start a 90 s rest by hand, or, while it runs, to show −15 s / +15 s / Skip. */
+const REST = {"Machine Bench Press":90,"Dumbbell Row":90,"Dumbbell Shoulder Press":90,"Machine Fly":60,"Cable Tricep Pushdown":60,"Hammer Curl":60,
+  "Leg Press":120,"Romanian Deadlift":120,"Dumbbell Hip Thrust":90,"Seated Calf Press":60,"Plank":60,
+  "Lat Pulldown":90,"Cable Row":90,"Dumbbell Bench Press":90,"Cable Face Pull":60,"Dumbbell Bicep Curl":60,"Incline Dumbbell Curl":60,"Dumbbell Skullcrusher":60,
+  "Dumbbell Lunge":90,"Single-Leg RDL":90,"Seated Leg Curl":60,"Single-Leg Calf Raise":45,"Hip Abductor":60};
+let RT = null, rtWake = null, rtIv = null;
+try{ const saved = JSON.parse(localStorage.getItem("fp.rest")||"null"); if(saved && saved.end > Date.now()) RT = saved; }catch(_){}
+function rtSave(){ try{ RT ? localStorage.setItem("fp.rest", JSON.stringify(RT)) : localStorage.removeItem("fp.rest"); }catch(_){} }
+function startRest(name, secs){
+  const total = secs || REST[name] || 90;
+  try{ ac = ac || new (window.AudioContext||window.webkitAudioContext)(); ac.resume && ac.resume(); }catch(_){}
+  RT = {name: name || "", total, end: Date.now() + total*1000};
+  rtSave(); rtRun();
+  if(!rtWake) navigator.wakeLock?.request("screen").then(w=>{ rtWake=w; }).catch(()=>{});
+}
+function rtStop(done){
+  RT = null; rtSave(); clearInterval(rtIv); rtIv = null;
+  try{ rtWake && rtWake.release(); }catch(_){} rtWake = null;
+  const el = document.getElementById("restTimer"); document.getElementById("rtCtl").hidden = true;
+  if(done){ el.dataset.state = "done"; document.getElementById("rtTime").textContent = "Go"; beep(880,180,3);
+    setTimeout(()=>{ if(!RT){ el.dataset.state = "idle"; document.getElementById("rtTime").textContent = ""; } }, 4000); }
+  else { el.dataset.state = "idle"; document.getElementById("rtTime").textContent = ""; }
+}
+function rtTick(){
+  if(!RT) return;
+  const left = RT.end - Date.now();
+  if(left <= 0){ rtStop(true); return; }
+  const s = Math.ceil(left/1000);
+  document.getElementById("rtTime").textContent = Math.floor(s/60) + ":" + String(s%60).padStart(2,"0");
+  document.getElementById("rtFill").style.width = Math.max(0, Math.min(100, 100*left/(RT.total*1000))) + "%";
+  document.getElementById("rtLabel").textContent = RT.name ? "Rest · " + RT.name : "Rest";
+}
+function rtRun(){ document.getElementById("restTimer").dataset.state = "run"; clearInterval(rtIv); rtIv = setInterval(rtTick, 250); rtTick(); }
+document.getElementById("rtMain").addEventListener("click", ()=>{
+  if(!RT){ startRest("", 90); document.getElementById("rtCtl").hidden = false; return; }
+  const c = document.getElementById("rtCtl"); c.hidden = !c.hidden;
+});
+document.getElementById("rtPlus").addEventListener("click", ()=>{ if(RT){ RT.end += 15000; RT.total += 15; rtSave(); rtTick(); } });
+document.getElementById("rtMinus").addEventListener("click", ()=>{ if(RT){ RT.end -= 15000; RT.total = Math.max(15, RT.total-15); rtSave(); rtTick(); } });
+document.getElementById("rtSkip").addEventListener("click", ()=>rtStop(false));
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible" && RT){ rtTick(); if(!rtWake) navigator.wakeLock?.request("screen").then(w=>{ rtWake=w; }).catch(()=>{}); } });
+if(RT) rtRun();
 function beep(freq, ms, times=1){
   try{
     ac = ac || new (window.AudioContext||window.webkitAudioContext)();
@@ -944,6 +1012,7 @@ document.getElementById("cards").addEventListener("submit",e=>{
   const rec = LOG[id] ? {...LOG[id], sets:[...LOG[id].sets]} : {date, exercise:name, sets:[], source:"app"};
   rec.sets.push({kg, reps}); LOG[id]=rec; drafts[name]={kg, reps};
   render(); save(id, rec);
+  startRest(name);
 });
 document.getElementById("cards").addEventListener("click",e=>{
   const ts=e.target.closest("[data-tstart]");
@@ -958,7 +1027,7 @@ document.getElementById("cards").addEventListener("click",e=>{
     const date=dayInput.value||today(), id=date+"_"+slug(name);
     const rec = LOG[id] ? {...LOG[id], sets:[...LOG[id].sets]} : {date, exercise:name, sets:[], source:"app"};
     rec.sets.push({kg:0, secs}); LOG[id]=rec;
-    render(); save(id, rec); toast("Logged "+secs+" s"); return;
+    render(); save(id, rec); toast("Logged "+secs+" s"); startRest(name); return;
   }
   const rm=e.target.closest("[data-rm]");
   if(rm){
