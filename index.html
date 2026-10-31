@@ -520,7 +520,16 @@ const REST = {"Machine Bench Press":90,"Dumbbell Row":90,"Dumbbell Shoulder Pres
 let RT = null, rtWake = null, rtIv = null;
 try{ const saved = JSON.parse(localStorage.getItem("fp.rest")||"null"); if(saved && saved.end > Date.now()) RT = saved; }catch(_){}
 function rtSave(){ try{ RT ? localStorage.setItem("fp.rest", JSON.stringify(RT)) : localStorage.removeItem("fp.rest"); }catch(_){} }
+/* A rest you adjust with −15 s / +15 s is remembered for that exercise's next set.
+   Logging a set of a different exercise goes back to its planned rest. */
+let restOverride = null;
+try{ restOverride = JSON.parse(localStorage.getItem("fp.restOverride")||"null"); }catch(_){}
+function saveOverride(){ try{ restOverride ? localStorage.setItem("fp.restOverride", JSON.stringify(restOverride)) : localStorage.removeItem("fp.restOverride"); }catch(_){} }
 function startRest(name, secs){
+  if(name && !secs){
+    if(restOverride && restOverride.name === name) secs = restOverride.secs;
+    else { restOverride = null; saveOverride(); }
+  }
   const total = secs || REST[name] || 90;
   try{ ac = ac || new (window.AudioContext||window.webkitAudioContext)(); ac.resume && ac.resume(); }catch(_){}
   RT = {name: name || "", total, end: Date.now() + total*1000};
@@ -542,15 +551,18 @@ function rtTick(){
   const s = Math.ceil(left/1000);
   document.getElementById("rtTime").textContent = Math.floor(s/60) + ":" + String(s%60).padStart(2,"0");
   document.getElementById("rtFill").style.width = Math.max(0, Math.min(100, 100*left/(RT.total*1000))) + "%";
-  document.getElementById("rtLabel").textContent = RT.name ? "Rest · " + RT.name : "Rest";
+  const planned = REST[RT.name];
+  document.getElementById("rtLabel").textContent = (RT.name ? "Rest · " + RT.name : "Rest") + " · " + RT.total + " s"
+    + (planned && RT.total !== planned ? " (planned " + planned + " s, kept for this exercise)" : "");
 }
 function rtRun(){ document.getElementById("restTimer").dataset.state = "run"; clearInterval(rtIv); rtIv = setInterval(rtTick, 250); rtTick(); }
 document.getElementById("rtMain").addEventListener("click", ()=>{
   if(!RT){ startRest("", 90); document.getElementById("rtCtl").hidden = false; return; }
   const c = document.getElementById("rtCtl"); c.hidden = !c.hidden;
 });
-document.getElementById("rtPlus").addEventListener("click", ()=>{ if(RT){ RT.end += 15000; RT.total += 15; rtSave(); rtTick(); } });
-document.getElementById("rtMinus").addEventListener("click", ()=>{ if(RT){ RT.end -= 15000; RT.total = Math.max(15, RT.total-15); rtSave(); rtTick(); } });
+function rememberRest(){ if(RT && RT.name){ restOverride = {name:RT.name, secs:RT.total}; saveOverride(); } }
+document.getElementById("rtPlus").addEventListener("click", ()=>{ if(RT){ RT.end += 15000; RT.total += 15; rtSave(); rememberRest(); rtTick(); } });
+document.getElementById("rtMinus").addEventListener("click", ()=>{ if(RT){ RT.end -= 15000; RT.total = Math.max(15, RT.total-15); rtSave(); rememberRest(); rtTick(); } });
 document.getElementById("rtSkip").addEventListener("click", ()=>rtStop(false));
 document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible" && RT){ rtTick(); if(!rtWake) navigator.wakeLock?.request("screen").then(w=>{ rtWake=w; }).catch(()=>{}); } });
 if(RT) rtRun();
